@@ -1,4 +1,5 @@
-from pynput import keyboard
+import keyboard
+import time
 
 def toggle_recording():
     """
@@ -18,27 +19,17 @@ def halt_task():
     """
     print("Halting task...")
 
-def on_press(key):
+def start_hotkey_listener():
     """
-    Handles key press events.
+    Registers the hotkeys and keeps the script running.
     """
-    if key == keyboard.Key.media_play_pause:
-        toggle_recording()
-    elif key == keyboard.Key.media_next:
-        toggle_smart_mode()
-    elif key == keyboard.Key.media_previous:
-        halt_task()
+    # Register hotkeys
+    keyboard.add_hotkey('play/pause media', toggle_recording)
+    keyboard.add_hotkey('next track', toggle_smart_mode)
+    keyboard.add_hotkey('previous track', halt_task)
 
-def on_release(key):
-    """
-    Handles key release events.
-    """
-    # In this implementation, we only care about key presses, but the listener
-    # requires a release handler.
-    pass
+    print("Listening for media key presses... (requires admin privileges)")
 
-if __name__ == "__main__":
-    print("Listening for media key presses...")
-    # Collect events until released
-    with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
-        listener.join()
+    # Keep the script running
+    while True:
+        time.sleep(1)

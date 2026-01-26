@@ -7,6 +7,7 @@ class DeviceSelector(tk.Tk):
         super().__init__()
         self.title("Bluetooth Device Selector")
         self.geometry("400x150")
+        self.selected_device = None
 
         self.label = ttk.Label(self, text="Select an audio input device:")
         self.label.pack(pady=10)
@@ -35,12 +36,7 @@ class DeviceSelector(tk.Tk):
 
     def select_device(self):
         """
-        Prints the selected device and closes the window.
+        Stores the selected device and closes the window.
         """
-        selected_device = self.device_var.get()
-        print(f"Selected device: {selected_device}")
+        self.selected_device = self.device_var.get()
         self.destroy()
-
-if __name__ == "__main__":
-    app = DeviceSelector()
-    app.mainloop()
