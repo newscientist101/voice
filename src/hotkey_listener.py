@@ -7,8 +7,8 @@ from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import Task
 from pipecat.frames.frames import Frame, TextFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
-from pipecat.processors.ollama import OllamaSTT
-from pipecat.transports.services.microphone import MicrophoneInput
+from pipecat.services.openai import OpenAISTTService
+from pipecat.transports.local.audio import LocalAudioInputTransport
 
 runner = None
 
@@ -30,8 +30,12 @@ class TranscriptionPrinter(FrameProcessor):
 
 async def start_transcription(input_device_name, model_name):
     global runner
-    mic = MicrophoneInput(device=input_device_name)
-    stt = OllamaSTT(model=model_name)
+    mic = LocalAudioInputTransport(device=input_device_name)
+    stt = OpenAISTTService(
+        api_key="ollama",
+        model=model_name,
+        base_url="http://localhost:11434/v1",
+    )
     printer = TranscriptionPrinter()
 
     pipeline = Pipeline([mic, stt, printer])
