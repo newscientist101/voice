@@ -13,11 +13,11 @@ def halt_task():
     """
     print("Halting task...")
 
-def start_hotkey_listener(input_device_index, model_name):
+def start_hotkey_listener(input_device_index):
     """
     Starts the hotkey listener.
     """
-    stt_service = STTService(input_device_index, model_name)
+    stt_service = STTService(input_device_index)
 
     def toggle_recording():
         if stt_service.is_running():

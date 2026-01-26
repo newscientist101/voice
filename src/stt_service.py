@@ -6,16 +6,15 @@ from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineTask
 from pipecat.frames.frames import Frame, TextFrame, EndFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
-from pipecat.services.openai.stt import OpenAISTTService
+from pipecat.services.whisper.stt import WhisperSTTService
 from pipecat.transports.local.audio import (
     LocalAudioInputTransport,
     LocalAudioTransportParams,
 )
 
 class STTService:
-    def __init__(self, input_device_index, model_name):
+    def __init__(self, input_device_index):
         self._input_device_index = input_device_index
-        self._model_name = model_name
         self._runner = None
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._run_async_loop, daemon=True)
@@ -33,11 +32,7 @@ class STTService:
             input_device_index=self._input_device_index,
         )
         mic = LocalAudioInputTransport(pa, params)
-        stt = OpenAISTTService(
-            api_key="ollama",
-            model=self._model_name,
-            base_url="http://localhost:11434/v1",
-        )
+        stt = WhisperSTTService()
         printer = self.TranscriptionPrinter()
 
         pipeline = Pipeline([mic, stt, printer])

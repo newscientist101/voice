@@ -3,11 +3,9 @@ from device_selector import DeviceSelector
 from hotkey_listener import start_hotkey_listener
 from environment import check_environment
 
-ASR_MODEL = "karanchopda333/whisper"
-
 if __name__ == "__main__":
-    # Step 1: Check the environment
-    check_environment(ASR_MODEL)
+    # Step 1: Check the environment (Ollama is not needed for local Whisper)
+    check_environment()
 
     # Step 2: Show the device selector GUI
     selector = DeviceSelector()
@@ -35,7 +33,7 @@ if __name__ == "__main__":
 
         if input_device_index is not None:
             print("Starting the hotkey listener...")
-            start_hotkey_listener(input_device_index, ASR_MODEL)
+            start_hotkey_listener(input_device_index)
         else:
             print(f"Could not find input device: {selected_input}")
 
