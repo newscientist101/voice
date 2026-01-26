@@ -4,11 +4,15 @@ from pynput import keyboard
 
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
+import pyaudio
 from pipecat.pipeline.task import Task
 from pipecat.frames.frames import Frame, TextFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.openai import OpenAISTTService
-from pipecat.transports.local.audio import LocalAudioInputTransport
+from pipecat.transports.local.audio import (
+    LocalAudioInputTransport,
+    LocalAudioTransportParams,
+)
 
 runner = None
 
@@ -28,9 +32,13 @@ class TranscriptionPrinter(FrameProcessor):
             print(f"{frame.text}", end="", flush=True)
         await self.push_frame(frame)
 
-async def start_transcription(input_device_name, model_name):
+async def start_transcription(input_device_index, model_name):
     global runner
-    mic = LocalAudioInputTransport(device=input_device_name)
+    pa = pyaudio.PyAudio()
+    params = LocalAudioTransportParams(
+        input_device_index=input_device_index,
+    )
+    mic = LocalAudioInputTransport(pa, params)
     stt = OpenAISTTService(
         api_key="ollama",
         model=model_name,
@@ -50,14 +58,14 @@ async def stop_transcription():
         await runner.stop_when_done()
         runner = None
 
-def toggle_recording(input_device_name, model_name):
+def toggle_recording(input_device_index, model_name):
     global runner
     if runner:
         print("\nStopping transcription...")
         asyncio.run_coroutine_threadsafe(stop_transcription(), loop)
     else:
         print("Starting transcription...")
-        asyncio.run_coroutine_threadsafe(start_transcription(input_device_name, model_name), loop)
+        asyncio.run_coroutine_threadsafe(start_transcription(input_device_index, model_name), loop)
 
 def toggle_smart_mode():
     """
@@ -71,7 +79,7 @@ def halt_task():
     """
     print("Halting task...")
 
-def start_hotkey_listener(selected_input, model_name):
+def start_hotkey_listener(input_device_index, model_name):
     """
     Starts the hotkey listener.
     """
@@ -80,7 +88,7 @@ def start_hotkey_listener(selected_input, model_name):
         Handles key press events.
         """
         if key == keyboard.Key.media_play_pause:
-            toggle_recording(selected_input, model_name)
+            toggle_recording(input_device_index, model_name)
         elif key == keyboard.Key.media_next:
             toggle_smart_mode()
         elif key == keyboard.Key.media_previous:

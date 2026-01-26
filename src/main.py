@@ -1,3 +1,4 @@
+import sounddevice as sd
 from device_selector import DeviceSelector
 from hotkey_listener import start_hotkey_listener
 from environment import check_environment
@@ -23,7 +24,20 @@ if __name__ == "__main__":
             print(f"Output device selected: {selected_output}")
         else:
             print("No output device selected.")
-        print("Starting the hotkey listener...")
-        start_hotkey_listener(selected_input, ASR_MODEL)
+
+        # Get the index of the selected input device
+        devices = sd.query_devices()
+        input_device_index = None
+        for i, device in enumerate(devices):
+            if device['name'] == selected_input and device['max_input_channels'] > 0:
+                input_device_index = i
+                break
+
+        if input_device_index is not None:
+            print("Starting the hotkey listener...")
+            start_hotkey_listener(input_device_index, ASR_MODEL)
+        else:
+            print(f"Could not find input device: {selected_input}")
+
     else:
         print("No input device selected. Exiting.")
