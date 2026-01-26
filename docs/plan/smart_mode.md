@@ -41,14 +41,6 @@
 
 **Key Insight:** Using local mode for routine tasks and Smart Mode only when needed keeps costs under $10-25/month instead of $1,000+/month with cloud-only solutions.
 
-### Button Controls
-
-**Bluetooth Device Buttons:**
-
-* **Play/Pause:** Push-to-talk (start/stop recording)
-* **Next Track:** Toggle Smart Mode ON (cloud AI with visual indicator)
-* **Previous Track:** Toggle Smart Mode OFF (back to local Ollama)
-
 **Visual/Audio Feedback:**
 
 * Local Mode: "🤖 Local" indicator
