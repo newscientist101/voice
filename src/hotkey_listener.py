@@ -28,7 +28,7 @@ def start_hotkey_listener():
     keyboard.add_hotkey('next track', toggle_smart_mode)
     keyboard.add_hotkey('previous track', halt_task)
 
-    print("Listening for media key presses... (requires admin privileges)")
+    print("Listening for media key presses...")
 
     # Keep the script running
     while True:
