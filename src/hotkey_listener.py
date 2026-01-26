@@ -5,7 +5,7 @@ from pynput import keyboard
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 import pyaudio
-from pipecat.pipeline.task import Task
+from pipecat.pipeline.task import PipelineTask
 from pipecat.frames.frames import Frame, TextFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.openai import OpenAISTTService
@@ -47,7 +47,7 @@ async def start_transcription(input_device_index, model_name):
     printer = TranscriptionPrinter()
 
     pipeline = Pipeline([mic, stt, printer])
-    task = Task(pipeline)
+    task = PipelineTask(pipeline)
     runner = PipelineRunner()
 
     await runner.run(task)
