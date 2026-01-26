@@ -1,3 +1,5 @@
 sounddevice
-keyboard
 numpy
+psutil
+pipecat-ai
+pynput
