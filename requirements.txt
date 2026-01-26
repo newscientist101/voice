@@ -4,3 +4,4 @@ psutil
 pipecat-ai[ollama]
 pynput
 PyAudio
+websockets
