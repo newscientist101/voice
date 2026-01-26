@@ -35,7 +35,7 @@
 │  ┌─────────────────────────────────────────────────────────────┐    │
 │  │      Language Model Layer (Windows GPU)                     │    │
 │  │  ┌──────────────────────────────────────────────────────┐   │    │
-│  │  │    vLLM Server - Qwen3-8B (CUDA)                     │   │    │
+│  │  │    Ollama Server - Qwen3-8B (CUDA)                   │   │    │
 │  │  │    • Listens on: 0.0.0.0:8000                        │   │    │
 │  │  │    • 4-bit quantization (Q4\\\_K\\\_M)               │   │    │
 │  │  │    • Tool calling enabled                            │   │    │
@@ -68,7 +68,7 @@
 │                                  │                                   │
 │  ┌─────────────────────────────────────────────────────────────┐     │
 │  │          MCP Client Layer (Ubuntu)                          │     │
-│  │  Receives tool calls from Windows vLLM via HTTP             │     │
+│  │  Receives tool calls from Windows Ollama via HTTP           │     │
 │  │  Executes in isolated environment                           │     │
 │  └─────────────────────────────────────────────────────────────┘     │
 │                                  │                                   │
@@ -111,10 +111,10 @@
 
 3. **Language Processing (Windows GPU):**
 
-   * Text sent to vLLM server running on Windows
+   * Text sent to Ollama server running on Windows
    * Qwen3-8B processes request with tool definitions
    * Model returns tool calls OR text response
-   * **CRITICAL: vLLM has NO direct access to Windows system**
+   * **CRITICAL: Ollama model has NO direct access to Windows system**
 
 4. **Tool Execution Request (Network to WSL2):**
 
@@ -131,7 +131,7 @@
 
 6. **Response Synthesis (Windows):**
 
-   * Tool results sent back to vLLM for natural language response
+   * Tool results sent back to Ollama for natural language response
    * Response text sent to Piper TTS (CPU)
    * Audio generated and played to user
 
