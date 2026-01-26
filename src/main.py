@@ -2,7 +2,7 @@ from device_selector import DeviceSelector
 from hotkey_listener import start_hotkey_listener
 from environment import check_environment
 
-ASR_MODEL = "faster-whisper"
+ASR_MODEL = "karanchopda333/whisper"
 
 if __name__ == "__main__":
     # Step 1: Check the environment
