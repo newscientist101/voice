@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import scrolledtext
-import keyboard
+from pynput import keyboard
 
 class TestApp(tk.Tk):
     def __init__(self):
@@ -24,13 +24,25 @@ class TestApp(tk.Tk):
         self.log_text.pack(pady=10)
 
         # Start listening for hotkeys
-        keyboard.on_press(self.on_press)
+        self.listener = keyboard.Listener(on_press=self.on_press)
+        self.listener.start()
 
-    def on_press(self, event):
+    def on_press(self, key):
         """
         Handles all key press events and updates the display.
         """
-        self.update_display(event.name)
+        key_name = ""
+        if key == keyboard.Key.media_play_pause:
+            key_name = "Play/Pause"
+        elif key == keyboard.Key.media_next:
+            key_name = "Next Track"
+        elif key == keyboard.Key.media_previous:
+            key_name = "Previous Track"
+        else:
+            key_name = str(key)
+
+        self.update_display(key_name)
+
 
     def update_display(self, key_name):
         self.last_key_var.set(key_name)

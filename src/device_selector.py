@@ -6,27 +6,44 @@ class DeviceSelector(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Bluetooth Device Selector")
-        self.geometry("400x150")
-        self.selected_device = None
+        self.geometry("400x250")
+        self.selected_input_device = None
+        self.selected_output_device = None
 
-        self.label = ttk.Label(self, text="Select an audio input device:")
-        self.label.pack(pady=10)
+        # Input device selector
+        self.input_label = ttk.Label(self, text="Select an audio input device:")
+        self.input_label.pack(pady=5)
 
-        self.devices = self.get_audio_devices()
-        self.device_var = tk.StringVar(self)
+        self.input_devices = self.get_input_devices()
+        self.input_device_var = tk.StringVar(self)
 
-        if self.devices:
-            self.device_var.set(self.devices[0])
-            self.dropdown = ttk.OptionMenu(self, self.device_var, self.devices[0], *self.devices)
-            self.dropdown.pack(pady=10)
+        if self.input_devices:
+            self.input_device_var.set(self.input_devices[0])
+            self.input_dropdown = ttk.OptionMenu(self, self.input_device_var, self.input_devices[0], *self.input_devices)
+            self.input_dropdown.pack(pady=5)
         else:
-            self.no_device_label = ttk.Label(self, text="No input devices found.")
-            self.no_device_label.pack(pady=10)
+            self.no_input_device_label = ttk.Label(self, text="No input devices found.")
+            self.no_input_device_label.pack(pady=5)
 
-        self.select_button = ttk.Button(self, text="Select", command=self.select_device)
-        self.select_button.pack(pady=10)
+        # Output device selector
+        self.output_label = ttk.Label(self, text="Select an audio output device:")
+        self.output_label.pack(pady=5)
 
-    def get_audio_devices(self):
+        self.output_devices = self.get_output_devices()
+        self.output_device_var = tk.StringVar(self)
+
+        if self.output_devices:
+            self.output_device_var.set(self.output_devices[0])
+            self.output_dropdown = ttk.OptionMenu(self, self.output_device_var, self.output_devices[0], *self.output_devices)
+            self.output_dropdown.pack(pady=5)
+        else:
+            self.no_output_device_label = ttk.Label(self, text="No output devices found.")
+            self.no_output_device_label.pack(pady=5)
+
+        self.select_button = ttk.Button(self, text="Select", command=self.select_devices)
+        self.select_button.pack(pady=20)
+
+    def get_input_devices(self):
         """
         Returns a list of audio input device names.
         """
@@ -34,9 +51,20 @@ class DeviceSelector(tk.Tk):
         input_devices = [device['name'] for device in devices if device['max_input_channels'] > 0]
         return input_devices
 
-    def select_device(self):
+    def get_output_devices(self):
         """
-        Stores the selected device and closes the window.
+        Returns a list of audio output device names.
         """
-        self.selected_device = self.device_var.get()
+        devices = sd.query_devices()
+        output_devices = [device['name'] for device in devices if device['max_output_channels'] > 0]
+        return output_devices
+
+    def select_devices(self):
+        """
+        Stores the selected input and output devices and closes the window.
+        """
+        if self.input_devices:
+            self.selected_input_device = self.input_device_var.get()
+        if self.output_devices:
+            self.selected_output_device = self.output_device_var.get()
         self.destroy()
