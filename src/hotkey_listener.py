@@ -8,7 +8,7 @@ import pyaudio
 from pipecat.pipeline.task import PipelineTask
 from pipecat.frames.frames import Frame, TextFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
-from pipecat.services.openai import OpenAISTTService
+from pipecat.services.openai.stt import OpenAISTTService
 from pipecat.transports.local.audio import (
     LocalAudioInputTransport,
     LocalAudioTransportParams,
