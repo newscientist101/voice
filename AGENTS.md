@@ -7,7 +7,7 @@
 
 ## Requirements
 
-Everything you build must utilize pipecat services, APIs, and SDKs. If anything does not seem to be possible with pure pipecat, look for relevent community integrations. You should always read the pipecat API before deciding how something will be done.
+Everything you build must utilize pipecat services, APIs, and SDKs. If anything does not seem to be possible with pure pipecat, look for relevent community integrations. Avoid creating entirely novel code. Utilize Modular Pipelines for most components. You should always read the pipecat API before deciding how something will be done.
 
 ## Docs
 
