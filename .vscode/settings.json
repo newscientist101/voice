@@ -1,7 +1,0 @@
-{
-    "markdown.validate.enabled": true,
-    "markdown.editor.updateLinksOnPaste.enabled": true,
-    "editor.pasteAs.preferences": [
-        "markdown.link"
-    ]
-}
