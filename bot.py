@@ -9,9 +9,10 @@ import sys
 from typing import Tuple
 
 from dotenv import load_dotenv
+from pynput import keyboard
 from loguru import logger
 from pipecat.audio.vad.silero import SileroVADAnalyzer, VADParams  # type: ignore
-from pipecat.frames.frames import Frame, TranscriptionFrame
+from pipecat.frames.frames import AudioRawFrame, DataFrame, Frame, TranscriptionFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineTask
@@ -42,6 +43,42 @@ class TranscriptionLogger(FrameProcessor):
             await self.push_frame(frame, direction)
 
 
+class PauseResumeProcessor(FrameProcessor):
+    """Processor that can be toggled to pause/resume the pipeline by dropping data frames."""
+    def __init__(self):
+        super().__init__()
+        self._paused = False
+
+    async def set_paused(self, paused: bool):
+        self._paused = paused
+        if self._paused:
+            logger.info("Pipeline Paused")
+        else:
+            logger.info("Pipeline Resumed")
+
+    async def toggle_paused(self):
+        await self.set_paused(not self._paused)
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+        if self._paused and (isinstance(frame, DataFrame) or isinstance(frame, AudioRawFrame)):
+            return
+        await self.push_frame(frame, direction)
+
+
+def start_hotkey_listener(loop: asyncio.AbstractEventLoop, processor: PauseResumeProcessor):
+    def on_press(key):
+        try:
+            if key == keyboard.Key.media_play_pause:
+                asyncio.run_coroutine_threadsafe(processor.toggle_paused(), loop)
+        except Exception as e:
+            logger.error(f"Error in hotkey listener: {e}")
+
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+    return listener
+
+
 async def main(input_device: int, output_device: int):
     transport = LocalAudioTransport(
         LocalAudioTransportParams(
@@ -64,15 +101,24 @@ async def main(input_device: int, output_device: int):
 
     logger_processor = TranscriptionLogger()
 
-    # Pipeline: input (with VAD) -> STT -> logger
+    pause_resume = PauseResumeProcessor()
+
+    # Start hotkey listener
+    loop = asyncio.get_running_loop()
+    listener = start_hotkey_listener(loop, pause_resume)
+
+    # Pipeline: input (with VAD) -> pause_resume -> STT -> logger
     # VAD detects when speech starts/stops and triggers STT processing
-    pipeline = Pipeline([transport.input(), stt, logger_processor])
+    pipeline = Pipeline([transport.input(), pause_resume, stt, logger_processor])
 
     task = PipelineTask(pipeline)
 
     runner = PipelineRunner(handle_sigint=False if sys.platform == "win32" else True)
 
-    await asyncio.gather(runner.run(task))
+    try:
+        await asyncio.gather(runner.run(task))
+    finally:
+        listener.stop()
 
 
 if __name__ == "__main__":
