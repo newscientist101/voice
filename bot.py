@@ -52,9 +52,9 @@ class PauseResumeProcessor(FrameProcessor):
     async def set_paused(self, paused: bool):
         self._paused = paused
         if self._paused:
-            logger.info("Pipeline PAUSED")
+            logger.info("Pipeline Paused")
         else:
-            logger.info("Pipeline RESUMED")
+            logger.info("Pipeline Resumed")
 
     async def toggle_paused(self):
         await self.set_paused(not self._paused)
@@ -105,7 +105,7 @@ async def main(input_device: int, output_device: int):
 
     # Start hotkey listener
     loop = asyncio.get_running_loop()
-    start_hotkey_listener(loop, pause_resume)
+    listener = start_hotkey_listener(loop, pause_resume)
 
     # Pipeline: input (with VAD) -> pause_resume -> STT -> logger
     # VAD detects when speech starts/stops and triggers STT processing
