@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from pynput import keyboard
 from loguru import logger
 from pipecat.audio.vad.silero import SileroVADAnalyzer, VADParams  # type: ignore
-from pipecat.frames.frames import DataFrame, Frame, TranscriptionFrame
+from pipecat.frames.frames import AudioRawFrame, DataFrame, Frame, TranscriptionFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineTask
@@ -60,7 +60,8 @@ class PauseResumeProcessor(FrameProcessor):
         await self.set_paused(not self._paused)
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
-        if self._paused and isinstance(frame, DataFrame):
+        await super().process_frame(frame, direction)
+        if self._paused and (isinstance(frame, DataFrame) or isinstance(frame, AudioRawFrame)):
             return
         await self.push_frame(frame, direction)
 
