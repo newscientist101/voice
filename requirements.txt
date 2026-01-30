@@ -1,7 +1,5 @@
-sounddevice
-numpy
-psutil
-pynput
-pyaudio
-pipecat-ai[whisper]
+pipecat-ai[whisper,local]
+textual
+pydantic-settings
+requests
 websockets
