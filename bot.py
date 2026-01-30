@@ -35,21 +35,6 @@ INSTRUCTIONS = ""
 logger.remove(0)
 logger.add(sys.stderr, level="DEBUG")
 
-
-class PipelineLogger(FrameProcessor):
-    """Logs transcription results from the pipeline."""
-
-    def __init__(self, label: str):
-        super().__init__()
-        self.label = label
-
-    async def process_frame(self, frame: Frame, direction: FrameDirection):
-        await super().process_frame(frame, direction)
-        if isinstance(frame, TranscriptionFrame):
-            logger.info(f"[{self.label}] Transcription: {frame.text}")
-        await self.push_frame(frame, direction)
-
-
 class PauseResumeProcessor(FrameProcessor):
     """Processor that can be toggled to pause/resume the pipeline by dropping data frames."""
     def __init__(self):
@@ -111,21 +96,18 @@ async def main(input_device: int, output_device: int):
     context = LLMContext([{"role": "system", "content": SYSTEM_PROMPT + INSTRUCTIONS}])
     context_aggregators = LLMContextAggregatorPair(context)
 
-    stt_logger = PipelineLogger("STT")
-
     pause_resume = PauseResumeProcessor()
 
     # Start hotkey listener
     loop = asyncio.get_running_loop()
     listener = start_hotkey_listener(loop, pause_resume)
 
-    # Pipeline: audio input -> pause_resume -> STT -> stt_logger -> user aggregator -> LLM -> assistant aggregator
+    # Pipeline: audio input -> pause_resume -> STT -> user aggregator -> LLM -> assistant aggregator
     # VAD detects when speech starts/stops and triggers STT processing
     pipeline = Pipeline([
         transport.input(),
         pause_resume,
         stt,
-        stt_logger,
         context_aggregators.user(),
         llm,
         context_aggregators.assistant(),
