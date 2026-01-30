@@ -17,8 +17,8 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.pipeline.task import PipelineTask
-from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat.processors.aggregators.llm_response import LLMUserContextAggregator, LLMAssistantContextAggregator
+from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.ollama.llm import OLLamaLLMService
 from pipecat.services.whisper.stt import Model, WhisperSTTService
@@ -108,9 +108,8 @@ async def main(input_device: int, output_device: int):
 
     llm = OLLamaLLMService(model="qwen3:8b")
 
-    context = OpenAILLMContext([{"role": "system", "content": SYSTEM_PROMPT + INSTRUCTIONS}])
-    user_aggregator = LLMUserContextAggregator(context)
-    assistant_aggregator = LLMAssistantContextAggregator(context)
+    context = LLMContext([{"role": "system", "content": SYSTEM_PROMPT + INSTRUCTIONS}])
+    context_aggregators = LLMContextAggregatorPair(context)
 
     stt_logger = PipelineLogger("STT")
 
@@ -120,16 +119,16 @@ async def main(input_device: int, output_device: int):
     loop = asyncio.get_running_loop()
     listener = start_hotkey_listener(loop, pause_resume)
 
-    # Pipeline: audio input -> pause_resume -> STT -> stt_logger -> user_aggregator -> LLM -> assistant_aggregator
+    # Pipeline: audio input -> pause_resume -> STT -> stt_logger -> user aggregator -> LLM -> assistant aggregator
     # VAD detects when speech starts/stops and triggers STT processing
     pipeline = Pipeline([
         transport.input(),
         pause_resume,
         stt,
         stt_logger,
-        user_aggregator,
+        context_aggregators.user(),
         llm,
-        assistant_aggregator,
+        context_aggregators.assistant(),
     ])
 
     task = PipelineTask(pipeline, observers=[LLMLogObserver()])
