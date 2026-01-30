@@ -12,9 +12,10 @@ from dotenv import load_dotenv
 from pynput import keyboard
 from loguru import logger
 from pipecat.audio.vad.silero import SileroVADAnalyzer, VADParams  # type: ignore
-from pipecat.frames.frames import AudioRawFrame, DataFrame, Frame, TranscriptionFrame, TextFrame, LLMFullResponseEndFrame
+from pipecat.frames.frames import AudioRawFrame, DataFrame, Frame, TranscriptionFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
+from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.pipeline.task import PipelineTask
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.processors.aggregators.llm_response import LLMUserContextAggregator, LLMAssistantContextAggregator
@@ -36,23 +37,16 @@ logger.add(sys.stderr, level="DEBUG")
 
 
 class PipelineLogger(FrameProcessor):
-    """Logs transcription results and LLM responses from the pipeline."""
+    """Logs transcription results from the pipeline."""
 
     def __init__(self, label: str):
         super().__init__()
         self.label = label
-        self._llm_response = ""
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
         if isinstance(frame, TranscriptionFrame):
             logger.info(f"[{self.label}] Transcription: {frame.text}")
-        elif isinstance(frame, TextFrame):
-            self._llm_response += frame.text
-        elif isinstance(frame, LLMFullResponseEndFrame):
-            if self._llm_response:
-                logger.info(f"[{self.label}] LLM Response: {self._llm_response}")
-                self._llm_response = ""
         await self.push_frame(frame, direction)
 
 
@@ -119,7 +113,6 @@ async def main(input_device: int, output_device: int):
     assistant_aggregator = LLMAssistantContextAggregator(context)
 
     stt_logger = PipelineLogger("STT")
-    llm_logger = PipelineLogger("LLM")
 
     pause_resume = PauseResumeProcessor()
 
@@ -127,7 +120,7 @@ async def main(input_device: int, output_device: int):
     loop = asyncio.get_running_loop()
     listener = start_hotkey_listener(loop, pause_resume)
 
-    # Pipeline: audio input -> pause_resume -> STT -> stt_logger -> user_aggregator -> LLM -> assistant_aggregator -> llm_logger
+    # Pipeline: audio input -> pause_resume -> STT -> stt_logger -> user_aggregator -> LLM -> assistant_aggregator
     # VAD detects when speech starts/stops and triggers STT processing
     pipeline = Pipeline([
         transport.input(),
@@ -137,10 +130,9 @@ async def main(input_device: int, output_device: int):
         user_aggregator,
         llm,
         assistant_aggregator,
-        llm_logger
     ])
 
-    task = PipelineTask(pipeline)
+    task = PipelineTask(pipeline, observers=[LLMLogObserver()])
 
     runner = PipelineRunner(handle_sigint=False if sys.platform == "win32" else True)
 
