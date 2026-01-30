@@ -1,4 +1,4 @@
-pipecat-ai[whisper,local]
+pipecat-ai[whisper,local,ollama]
 pynput
 textual
 pydantic-settings
