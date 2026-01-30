@@ -21,6 +21,7 @@ from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.ollama.llm import OLLamaLLMService
+from pipecat.services.piper.tts import PiperTTSService
 from pipecat.services.whisper.stt import Model, WhisperSTTService
 from pipecat.transports.local.audio import LocalAudioTransport, LocalAudioTransportParams
 
@@ -75,7 +76,7 @@ async def main(input_device: int, output_device: int):
     transport = LocalAudioTransport(
         LocalAudioTransportParams(
             audio_in_enabled=True,
-            audio_out_enabled=False,
+            audio_out_enabled=True,
             input_device_index=input_device,
             output_device_index=output_device,
             vad_analyzer=SileroVADAnalyzer(
@@ -93,6 +94,8 @@ async def main(input_device: int, output_device: int):
 
     llm = OLLamaLLMService(model="qwen3:8b")
 
+    tts = PiperTTSService(voice_id="en_US-ryan-high")
+
     context = LLMContext([{"role": "system", "content": SYSTEM_PROMPT + INSTRUCTIONS}])
     context_aggregators = LLMContextAggregatorPair(context)
 
@@ -102,7 +105,7 @@ async def main(input_device: int, output_device: int):
     loop = asyncio.get_running_loop()
     listener = start_hotkey_listener(loop, pause_resume)
 
-    # Pipeline: audio input -> pause_resume -> STT -> user aggregator -> LLM -> assistant aggregator
+    # Pipeline: audio input -> pause_resume -> STT -> user aggregator -> LLM -> assistant aggregator -> TTS -> audio output
     # VAD detects when speech starts/stops and triggers STT processing
     pipeline = Pipeline([
         transport.input(),
@@ -111,6 +114,8 @@ async def main(input_device: int, output_device: int):
         context_aggregators.user(),
         llm,
         context_aggregators.assistant(),
+        tts,
+        transport.output(),
     ])
 
     task = PipelineTask(pipeline, observers=[LLMLogObserver()])

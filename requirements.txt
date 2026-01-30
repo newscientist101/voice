@@ -1,6 +1,7 @@
-pipecat-ai[whisper,local,ollama]
+pipecat-ai[whisper,local,ollama,piper] @ git+https://github.com/pipecat-ai/pipecat.git
 pynput
 textual
 pydantic-settings
 requests
 websockets
+piper-tts
