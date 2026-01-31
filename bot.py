@@ -22,6 +22,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
+from pipecat.processors.aggregators.llm_text_processor import LLMTextProcessor
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.ollama.llm import OLLamaLLMService
 from pipecat.services.piper.tts import PiperTTSService
@@ -91,6 +92,8 @@ async def main(input_device: int, output_device: int):
 
     tts = PiperTTSService(voice_id="en_US-ryan-high")
 
+    llm_text_processor = LLMTextProcessor()
+
     context = LLMContext([{"role": "system", "content": SYSTEM_PROMPT + INSTRUCTIONS}])
     context_aggregators = LLMContextAggregatorPair(
         context,
@@ -112,17 +115,19 @@ async def main(input_device: int, output_device: int):
     loop = asyncio.get_running_loop()
     listener = start_hotkey_listener(loop, pause_resume)
 
-    # Pipeline: audio input -> pause_resume -> STT -> user aggregator -> LLM -> assistant aggregator -> TTS -> audio output
+    # Pipeline: audio input -> pause_resume -> STT -> user aggregator -> LLM -> text processor -> TTS -> audio output -> assistant aggregator
     # VAD detects when speech starts/stops and triggers STT processing
+    # The assistant aggregator is at the end to allow streaming text to reach TTS first
     pipeline = Pipeline([
         transport.input(),
         pause_resume,
         stt,
         context_aggregators.user(),
         llm,
-        context_aggregators.assistant(),
+        llm_text_processor,
         tts,
         transport.output(),
+        context_aggregators.assistant(),
     ])
 
     task = PipelineTask(pipeline, observers=[LLMLogObserver()])
