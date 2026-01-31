@@ -11,25 +11,32 @@ from typing import Tuple
 from dotenv import load_dotenv
 from pynput import keyboard
 from loguru import logger
+
 from pipecat.audio.vad.silero import SileroVADAnalyzer, VADParams  # type: ignore
 from pipecat.frames.frames import AudioRawFrame, DataFrame, Frame, TranscriptionFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
-from pipecat.pipeline.task import PipelineTask
+from pipecat.pipeline.task import PipelineTask, PipelineParams
 from pipecat.processors.aggregators.llm_context import LLMContext
-from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMContextAggregatorPair,
+    LLMUserAggregatorParams,
+)
+from pipecat.processors.aggregators.llm_text_processor import LLMTextProcessor
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.ollama.llm import OLLamaLLMService
+from pipecat.services.piper.tts import PiperTTSService
 from pipecat.services.whisper.stt import Model, WhisperSTTService
 from pipecat.transports.local.audio import LocalAudioTransport, LocalAudioTransportParams
-
+from pipecat_tail.observer import TailObserver
+from pipecat.utils.text.pattern_pair_aggregator import PatternPairAggregator, MatchAction
 
 from select_audio_device import AudioDevice, run_device_selector
 
 load_dotenv(override=True)
 
-SYSTEM_PROMPT = ""
+SYSTEM_PROMPT = "Do not use any markdown formatting in your responses. Respond only with plain text. Do not include any special characters or symbols."
 INSTRUCTIONS = ""
 
 logger.remove(0)
@@ -75,17 +82,9 @@ async def main(input_device: int, output_device: int):
     transport = LocalAudioTransport(
         LocalAudioTransportParams(
             audio_in_enabled=True,
-            audio_out_enabled=False,
+            audio_out_enabled=True,
             input_device_index=input_device,
             output_device_index=output_device,
-            vad_analyzer=SileroVADAnalyzer(
-                params=VADParams(
-                    stop_secs=0.2,  # Reduced from default 0.8s for faster response
-                    start_secs=0.1,  # Quick start detection
-                    confidence=0.5,  # Lower threshold for more responsive detection
-                    min_volume=0.3,
-                )
-            ),
         )
     )
 
@@ -93,8 +92,33 @@ async def main(input_device: int, output_device: int):
 
     llm = OLLamaLLMService(model="qwen3:8b")
 
+    tts = PiperTTSService(voice_id="en_US-ryan-high")
+
+    pattern_aggregator = PatternPairAggregator()
+
+    pattern_aggregator.add_pattern(type="Bold", start_pattern="**", end_pattern="**", action=MatchAction.KEEP)
+    pattern_aggregator.add_pattern(type="Italic", start_pattern="*", end_pattern="*", action=MatchAction.KEEP)
+    pattern_aggregator.add_pattern(type="Underline", start_pattern="_", end_pattern="_", action=MatchAction.KEEP)
+    pattern_aggregator.add_pattern(type="Strikethrough", start_pattern="~", end_pattern="~", action=MatchAction.KEEP)
+    pattern_aggregator.add_pattern(type="Code", start_pattern="```", end_pattern=r"```", action=MatchAction.KEEP)
+    pattern_aggregator.add_pattern(type="InlineCode", start_pattern=r"`", end_pattern=r"`", action=MatchAction.KEEP)
+    
+    llm_text_processor = LLMTextProcessor(text_aggregator=pattern_aggregator)
+
     context = LLMContext([{"role": "system", "content": SYSTEM_PROMPT + INSTRUCTIONS}])
-    context_aggregators = LLMContextAggregatorPair(context)
+    context_aggregators = LLMContextAggregatorPair(
+        context,
+        user_params=LLMUserAggregatorParams(
+            vad_analyzer=SileroVADAnalyzer(
+                params=VADParams(
+                    stop_secs=0.2,  # Reduced from default 0.8s for faster response
+                    start_secs=0.1,  # Quick start detection
+                    confidence=0.5,  # Lower threshold for more responsive detection
+                    min_volume=0.3,
+                )
+            )
+        ),
+    )
 
     pause_resume = PauseResumeProcessor()
 
@@ -102,18 +126,28 @@ async def main(input_device: int, output_device: int):
     loop = asyncio.get_running_loop()
     listener = start_hotkey_listener(loop, pause_resume)
 
-    # Pipeline: audio input -> pause_resume -> STT -> user aggregator -> LLM -> assistant aggregator
+    # Pipeline: audio input -> pause_resume -> STT -> user aggregator -> LLM -> text processor -> TTS -> audio output -> assistant aggregator
     # VAD detects when speech starts/stops and triggers STT processing
+    # The assistant aggregator is at the end to allow streaming text to reach TTS first
     pipeline = Pipeline([
         transport.input(),
         pause_resume,
         stt,
         context_aggregators.user(),
         llm,
+        llm_text_processor,
+        tts,
+        transport.output(),
         context_aggregators.assistant(),
     ])
 
-    task = PipelineTask(pipeline, observers=[LLMLogObserver()])
+    task = PipelineTask(
+        pipeline, 
+        params=PipelineParams(
+            enable_metrics=True,
+            enable_usage_metrics=True,
+        ),
+        observers=[LLMLogObserver(),TailObserver()])
 
     runner = PipelineRunner(handle_sigint=False if sys.platform == "win32" else True)
 
