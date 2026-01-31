@@ -25,7 +25,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
 from pipecat.processors.aggregators.llm_text_processor import LLMTextProcessor
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.ollama.llm import OLLamaLLMService
-from pipecat.services.piper.tts import PiperTTSService
+from pipecat.services.kokoro.tts import KokoroTTSService
 from pipecat.services.whisper.stt import Model, WhisperSTTService
 from pipecat.transports.local.audio import LocalAudioTransport, LocalAudioTransportParams
 
@@ -90,7 +90,7 @@ async def main(input_device: int, output_device: int):
 
     llm = OLLamaLLMService(model="qwen3:8b")
 
-    tts = PiperTTSService(voice_id="en_US-ryan-high")
+    tts = KokoroTTSService(voice_id="af_heart")
 
     llm_text_processor = LLMTextProcessor()
 
