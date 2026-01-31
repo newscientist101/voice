@@ -94,14 +94,15 @@ async def main(input_device: int, output_device: int):
 
     tts = PiperTTSService(voice_id="en_US-ryan-high")
 
-    pattern_aggregator = PatternPairAggregator()
-
-    pattern_aggregator.add_pattern(type="Bold", start_pattern="**", end_pattern="**", action=MatchAction.KEEP)
-    pattern_aggregator.add_pattern(type="Italic", start_pattern="*", end_pattern="*", action=MatchAction.KEEP)
-    pattern_aggregator.add_pattern(type="Underline", start_pattern="_", end_pattern="_", action=MatchAction.KEEP)
-    pattern_aggregator.add_pattern(type="Strikethrough", start_pattern="~", end_pattern="~", action=MatchAction.KEEP)
-    pattern_aggregator.add_pattern(type="Code", start_pattern="```", end_pattern=r"```", action=MatchAction.KEEP)
-    pattern_aggregator.add_pattern(type="InlineCode", start_pattern=r"`", end_pattern=r"`", action=MatchAction.KEEP)
+    pattern_aggregator = (
+        PatternPairAggregator()
+            .add_pattern(type="Bold", start_pattern="**", end_pattern="**", action=MatchAction.KEEP)
+            .add_pattern(type="Italic", start_pattern="*", end_pattern="*", action=MatchAction.KEEP)
+            .add_pattern(type="Underline", start_pattern="_", end_pattern="_", action=MatchAction.KEEP)
+            .add_pattern(type="Strikethrough", start_pattern="~", end_pattern="~", action=MatchAction.KEEP)
+            .add_pattern(type="Code", start_pattern="```", end_pattern="```", action=MatchAction.KEEP)
+            .add_pattern(type="InlineCode", start_pattern="`", end_pattern="`", action=MatchAction.KEEP)
+    )
     
     llm_text_processor = LLMTextProcessor(text_aggregator=pattern_aggregator)
 
