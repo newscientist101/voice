@@ -1,4 +1,4 @@
-pipecat-ai[whisper,local,ollama,piper] @ git+https://github.com/pipecat-ai/pipecat.git
+pipecat-ai[whisper,local,ollama,piper,tail] @ git+https://github.com/pipecat-ai/pipecat.git
 pynput
 textual
 pydantic-settings
