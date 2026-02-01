@@ -111,11 +111,11 @@ async def main(input_device: int, output_device: int):
     tts = PiperTTSService(voice_id="en_US-ryan-high")
 
     tts.add_text_transformer(fix_markdown, "Bold")
-    tts.add_text_transformer(fix_markdown, "Italic")
-    tts.add_text_transformer(fix_markdown, "Underline")
-    tts.add_text_transformer(fix_markdown, "Strikethrough")
-    tts.add_text_transformer(fix_markdown, "Code")
-    tts.add_text_transformer(fix_markdown, "InlineCode")
+    #tts.add_text_transformer(fix_markdown, "Italic")
+    #tts.add_text_transformer(fix_markdown, "Underline")
+    #tts.add_text_transformer(fix_markdown, "Strikethrough")
+    #tts.add_text_transformer(fix_markdown, "Code")
+    #tts.add_text_transformer(fix_markdown, "InlineCode")
 
     pattern_aggregator = (
         PatternPairAggregator()
