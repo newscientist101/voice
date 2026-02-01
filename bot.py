@@ -5,8 +5,9 @@
 #
 
 import asyncio
+import re
 import sys
-from typing import Tuple
+from typing import Tuple, List, Optional
 
 from dotenv import load_dotenv
 from pynput import keyboard
@@ -31,7 +32,8 @@ from pipecat.services.whisper.stt import Model, WhisperSTTService
 from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.transports.local.audio import LocalAudioTransport, LocalAudioTransportParams
 from pipecat_tail.observer import TailObserver
-from pipecat.utils.text.pattern_pair_aggregator import PatternPairAggregator, MatchAction
+from pipecat.utils.text.pattern_pair_aggregator import PatternPairAggregator, MatchAction, PatternMatch
+from pattern_aggregator_fixed import FixedPatternPairAggregator
 from pipecat.adapters.schemas.tools_schema import ToolsSchema
 
 from select_audio_device import AudioDevice, run_device_selector
@@ -44,6 +46,8 @@ INSTRUCTIONS = ""
 
 logger.remove(0)
 logger.add(sys.stderr, level="DEBUG")
+
+
 
 class PauseResumeProcessor(FrameProcessor):
     """Processor that can be toggled to pause/resume the pipeline by dropping data frames."""
@@ -110,21 +114,16 @@ async def main(input_device: int, output_device: int):
 
     tts = PiperTTSService(voice_id="en_US-ryan-high")
 
-    tts.add_text_transformer(fix_markdown, "Bold")
-    #tts.add_text_transformer(fix_markdown, "Italic")
-    #tts.add_text_transformer(fix_markdown, "Underline")
-    #tts.add_text_transformer(fix_markdown, "Strikethrough")
-    #tts.add_text_transformer(fix_markdown, "Code")
-    #tts.add_text_transformer(fix_markdown, "InlineCode")
+    tts.add_text_transformer(fix_markdown, "*")
 
     pattern_aggregator = (
-        PatternPairAggregator()
+        FixedPatternPairAggregator()
             .add_pattern(type="Bold", start_pattern="**", end_pattern="**", action=MatchAction.KEEP)
-            #.add_pattern(type="Italic", start_pattern="*", end_pattern="*", action=MatchAction.KEEP)
-            #.add_pattern(type="Underline", start_pattern="_", end_pattern="_", action=MatchAction.KEEP)
-            #.add_pattern(type="Strikethrough", start_pattern="~", end_pattern="~", action=MatchAction.KEEP)
-            #.add_pattern(type="Code", start_pattern="```", end_pattern="```", action=MatchAction.KEEP)
-            #.add_pattern(type="InlineCode", start_pattern="`", end_pattern="`", action=MatchAction.KEEP)
+            .add_pattern(type="Italic", start_pattern="*", end_pattern="*", action=MatchAction.KEEP)
+            .add_pattern(type="Underline", start_pattern="_", end_pattern="_", action=MatchAction.KEEP)
+            .add_pattern(type="Strikethrough", start_pattern="~", end_pattern="~", action=MatchAction.KEEP)
+            .add_pattern(type="Code", start_pattern="```", end_pattern="```", action=MatchAction.KEEP)
+            .add_pattern(type="InlineCode", start_pattern="`", end_pattern="`", action=MatchAction.KEEP)
     )
     
     llm_text_processor = LLMTextProcessor(text_aggregator=pattern_aggregator)
