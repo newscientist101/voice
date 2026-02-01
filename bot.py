@@ -14,29 +14,32 @@ from loguru import logger
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer, VADParams  # type: ignore
 from pipecat.frames.frames import AudioRawFrame, DataFrame, Frame, TranscriptionFrame
+
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
-from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.pipeline.task import PipelineTask, PipelineParams
+
 from pipecat.processors.aggregators.llm_context import LLMContext
-from pipecat.processors.aggregators.llm_response_universal import (
-    LLMContextAggregatorPair,
-    LLMUserAggregatorParams,
-)
+from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair, LLMUserAggregatorParams
 from pipecat.processors.aggregators.llm_text_processor import LLMTextProcessor
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
+
 from pipecat.services.ollama.llm import OLLamaLLMService
 from pipecat.services.piper.tts import PiperTTSService
 from pipecat.services.whisper.stt import Model, WhisperSTTService
+
+from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.transports.local.audio import LocalAudioTransport, LocalAudioTransportParams
 from pipecat_tail.observer import TailObserver
 from pipecat.utils.text.pattern_pair_aggregator import PatternPairAggregator, MatchAction
+from pipecat.adapters.schemas.tools_schema import ToolsSchema
 
 from select_audio_device import AudioDevice, run_device_selector
+from tools import *
 
 load_dotenv(override=True)
 
-SYSTEM_PROMPT = "Do not use any markdown formatting in your responses. Respond only with plain text. Do not include any special characters or symbols."
+SYSTEM_PROMPT = ""#"Do not use any markdown formatting in your responses. Respond only with plain text. Do not include any special characters or symbols."
 INSTRUCTIONS = ""
 
 logger.remove(0)
@@ -88,25 +91,54 @@ async def main(input_device: int, output_device: int):
         )
     )
 
+    async def fix_markdown(text: str, type: str) -> str:
+        replacements = {
+            "**": "",
+            "*": "",
+            "_": "",
+            "~": "",
+            "```": "",
+            "`": "",
+        }
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+        return text
+
     stt = WhisperSTTService(device="cpu", model=Model.SMALL, no_speech_prob=0.2)
 
     llm = OLLamaLLMService(model="qwen3:8b")
 
     tts = PiperTTSService(voice_id="en_US-ryan-high")
 
+    tts.add_text_transformer(fix_markdown, "Bold")
+    tts.add_text_transformer(fix_markdown, "Italic")
+    tts.add_text_transformer(fix_markdown, "Underline")
+    tts.add_text_transformer(fix_markdown, "Strikethrough")
+    tts.add_text_transformer(fix_markdown, "Code")
+    tts.add_text_transformer(fix_markdown, "InlineCode")
+
     pattern_aggregator = (
         PatternPairAggregator()
             .add_pattern(type="Bold", start_pattern="**", end_pattern="**", action=MatchAction.KEEP)
-            .add_pattern(type="Italic", start_pattern="*", end_pattern="*", action=MatchAction.KEEP)
-            .add_pattern(type="Underline", start_pattern="_", end_pattern="_", action=MatchAction.KEEP)
-            .add_pattern(type="Strikethrough", start_pattern="~", end_pattern="~", action=MatchAction.KEEP)
-            .add_pattern(type="Code", start_pattern="```", end_pattern="```", action=MatchAction.KEEP)
-            .add_pattern(type="InlineCode", start_pattern="`", end_pattern="`", action=MatchAction.KEEP)
+            #.add_pattern(type="Italic", start_pattern="*", end_pattern="*", action=MatchAction.KEEP)
+            #.add_pattern(type="Underline", start_pattern="_", end_pattern="_", action=MatchAction.KEEP)
+            #.add_pattern(type="Strikethrough", start_pattern="~", end_pattern="~", action=MatchAction.KEEP)
+            #.add_pattern(type="Code", start_pattern="```", end_pattern="```", action=MatchAction.KEEP)
+            #.add_pattern(type="InlineCode", start_pattern="`", end_pattern="`", action=MatchAction.KEEP)
     )
     
     llm_text_processor = LLMTextProcessor(text_aggregator=pattern_aggregator)
 
-    context = LLMContext([{"role": "system", "content": SYSTEM_PROMPT + INSTRUCTIONS}])
+    llm.register_direct_function(
+        get_current_weather,
+        cancel_on_interruption=False,  # Don't cancel on interruption
+    )
+    tools = ToolsSchema(standard_tools=[get_current_weather]) 
+
+    context = LLMContext(
+        messages=[{"role": "system", "content": SYSTEM_PROMPT + INSTRUCTIONS}],
+        tools=tools
+        )
     context_aggregators = LLMContextAggregatorPair(
         context,
         user_params=LLMUserAggregatorParams(

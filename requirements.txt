@@ -4,5 +4,6 @@ textual
 pydantic-settings
 requests
 websockets
+python-dotenv
 piper-tts==1.3.0; sys_platform == 'win32'
 piper-tts; sys_platform != 'win32'
