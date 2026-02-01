@@ -5,3 +5,4 @@ __pycache__/
 *.onnx*
 .env
 .pytest_cache/
+.gemini/
