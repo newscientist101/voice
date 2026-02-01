@@ -8,7 +8,7 @@ load_dotenv(override=True)
 
 # Define a direct function
 async def get_current_weather(params: FunctionCallParams, location: str, format: str = "fahrenheit"):
-    """Get the current weather.
+    """Get the current weather. If the user only requests a specific weather property like temperature or humidity, do not provide additional information.
 
     Args:
         location: The city, state and country, e.g. "San Francisco, CA, USA".

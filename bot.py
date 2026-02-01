@@ -41,8 +41,8 @@ from tools import *
 
 load_dotenv(override=True)
 
-SYSTEM_PROMPT = ""#"Do not use any markdown formatting in your responses. Respond only with plain text. Do not include any special characters or symbols."
-INSTRUCTIONS = ""
+SYSTEM_PROMPT = "You are a helpful assistant. "
+INSTRUCTIONS = "Do not use the provided tools unless the users' request specifically asks for information that requires them. This does not need to be communicated to the user. Do not use emojis in your responses."
 
 logger.remove(0)
 logger.add(sys.stderr, level="DEBUG")
