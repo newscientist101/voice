@@ -2,6 +2,27 @@
 import pytest
 import asyncio
 from pattern_aggregator_fixed import FixedPatternPairAggregator, MatchAction
+from pipecat.utils.text.pattern_pair_aggregator import PatternPairAggregator
+
+@pytest.mark.asyncio
+async def test_PatternPairAggregator():
+    agg = PatternPairAggregator()
+    agg.add_pattern(type="Bold", start_pattern="**", end_pattern="**", action=MatchAction.KEEP)
+
+    # Test streaming input
+    results = []
+    text = "This is **bold** text."
+    for char in text:
+        async for match in agg.aggregate(char):
+            results.append(match)
+
+    remaining = await agg.flush()
+    if remaining:
+        results.append(remaining)
+
+    # Expectation: The final flushed text should have ** removed.
+    assert len(results) == 1
+    assert results[0].text == "This is bold text."
 
 @pytest.mark.asyncio
 async def test_symmetric_delimiters_keep():
