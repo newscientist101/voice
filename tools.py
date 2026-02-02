@@ -1,6 +1,8 @@
 import os
 import requests
 from pipecat.services.llm_service import FunctionCallParams
+from pipecat.frames.frames import EndTaskFrame,TTSSpeakFrame
+from pipecat.processors.frame_processor import FrameDirection
 
 from dotenv import load_dotenv
 
@@ -45,3 +47,12 @@ async def get_current_weather(params: FunctionCallParams, location: str, format:
         await params.result_callback({"error": f"API request failed: {e}"})
     except (KeyError, IndexError) as e:
         await params.result_callback({"error": f"Failed to parse weather data: {e}"})
+
+async def hangup(params: FunctionCallParams):
+    """Hang up the current call.
+    Alias: "End Call", "Disconnect the call", "Terminate Call"
+    """
+    await params.llm.push_frame(TTSSpeakFrame("Hanging up now."))
+
+    # Signal that the task should end after processing this frame
+    await params.llm.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)

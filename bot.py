@@ -128,11 +128,10 @@ async def main(input_device: int, output_device: int):
     
     llm_text_processor = LLMTextProcessor(text_aggregator=pattern_aggregator)
 
-    llm.register_direct_function(
-        get_current_weather,
-        cancel_on_interruption=False,  # Don't cancel on interruption
-    )
-    tools = ToolsSchema(standard_tools=[get_current_weather]) 
+    toolList = [get_current_weather, hangup]
+    for tool in toolList:
+        llm.register_direct_function(tool, cancel_on_interruption=False)
+    tools = ToolsSchema(standard_tools=toolList) 
 
     context = LLMContext(
         messages=[{"role": "system", "content": SYSTEM_PROMPT + INSTRUCTIONS}],
@@ -190,8 +189,14 @@ async def main(input_device: int, output_device: int):
 
 
 if __name__ == "__main__":
-    res: Tuple[AudioDevice, AudioDevice, int] = asyncio.run(
-        run_device_selector()  # runs the textual app that allows to select input device
-    )
-
+    if not os.environ.get("TESTING_AUDIO_DEVICES"):
+        res: Tuple[AudioDevice, AudioDevice, int] = asyncio.run(
+            run_device_selector()  # runs the textual app that allows to select input device
+        )
+    else:
+        res = (
+            AudioDevice(index=6, name="Test Input Device",structVersion=2, maxInputChannels=2, maxOutputChannels=0, defaultLowInputLatency=0.01, defaultLowOutputLatency=0.0, defaultHighInputLatency=0.1, defaultHighOutputLatency=0.0, defaultSampleRate=44100.0, hostApi=0),
+            AudioDevice(index=9, name="Test Output Device",structVersion=2, maxInputChannels=0, maxOutputChannels=2, defaultLowInputLatency=0.0, defaultLowOutputLatency=0.0, defaultHighInputLatency=0.0, defaultHighOutputLatency=0.0, defaultSampleRate=44100.0, hostApi=0),
+            0,
+        )
     asyncio.run(main(res[0].index, res[1].index))
