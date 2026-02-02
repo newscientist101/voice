@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest.mock import patch, Mock, AsyncMock
 
-from tools import get_current_weather
+from tools import get_current_weather, define_word
 
 class TestTools(unittest.IsolatedAsyncioTestCase):
 
@@ -76,4 +76,63 @@ class TestTools(unittest.IsolatedAsyncioTestCase):
             "humidity": "60%",
             "wind_speed": "10 mph",
         }
+        mock_params.result_callback.assert_awaited_once_with(expected_result)
+
+    @patch('tools.requests.get')
+    async def test_define_word_success(self, mock_get):
+        # Arrange
+        word = "hello"
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {
+                "word": "hello",
+                "phonetic": "həˈləʊ",
+                "meanings": [
+                    {
+                        "partOfSpeech": "noun",
+                        "definitions": [
+                            {"definition": "A greeting."}
+                        ]
+                    }
+                ]
+            }
+        ]
+        mock_get.return_value = mock_response
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await define_word(mock_params, word)
+
+        # Assert
+        expected_result = {
+            "word": "hello",
+            "phonetic": "həˈləʊ",
+            "meanings": [
+                {
+                    "part_of_speech": "noun",
+                    "definitions": ["A greeting."]
+                }
+            ]
+        }
+        mock_params.result_callback.assert_awaited_once_with(expected_result)
+
+    @patch('tools.requests.get')
+    async def test_define_word_not_found(self, mock_get):
+        # Arrange
+        word = "nonexistentword"
+        mock_response = Mock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await define_word(mock_params, word)
+
+        # Assert
+        expected_result = {"error": f"Word '{word}' not found."}
         mock_params.result_callback.assert_awaited_once_with(expected_result)
