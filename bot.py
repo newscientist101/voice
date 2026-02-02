@@ -5,8 +5,9 @@
 #
 
 import asyncio
+import re
 import sys
-from typing import Tuple
+from typing import Tuple, List, Optional
 
 from dotenv import load_dotenv
 from pynput import keyboard
@@ -31,7 +32,8 @@ from pipecat.services.whisper.stt import Model, WhisperSTTService
 from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.transports.local.audio import LocalAudioTransport, LocalAudioTransportParams
 from pipecat_tail.observer import TailObserver
-from pipecat.utils.text.pattern_pair_aggregator import PatternPairAggregator, MatchAction
+from pipecat.utils.text.pattern_pair_aggregator import PatternPairAggregator, MatchAction, PatternMatch
+from pattern_aggregator_fixed import FixedPatternPairAggregator
 from pipecat.adapters.schemas.tools_schema import ToolsSchema
 
 from select_audio_device import AudioDevice, run_device_selector
@@ -39,11 +41,13 @@ from tools import *
 
 load_dotenv(override=True)
 
-SYSTEM_PROMPT = ""#"Do not use any markdown formatting in your responses. Respond only with plain text. Do not include any special characters or symbols."
-INSTRUCTIONS = ""
+SYSTEM_PROMPT = "You are a helpful assistant. "
+INSTRUCTIONS = "Do not use the provided tools unless the users' request specifically asks for information that requires them. This does not need to be communicated to the user. Do not use emojis in your responses."
 
 logger.remove(0)
 logger.add(sys.stderr, level="DEBUG")
+
+
 
 class PauseResumeProcessor(FrameProcessor):
     """Processor that can be toggled to pause/resume the pipeline by dropping data frames."""
@@ -110,30 +114,24 @@ async def main(input_device: int, output_device: int):
 
     tts = PiperTTSService(voice_id="en_US-ryan-high")
 
-    tts.add_text_transformer(fix_markdown, "Bold")
-    #tts.add_text_transformer(fix_markdown, "Italic")
-    #tts.add_text_transformer(fix_markdown, "Underline")
-    #tts.add_text_transformer(fix_markdown, "Strikethrough")
-    #tts.add_text_transformer(fix_markdown, "Code")
-    #tts.add_text_transformer(fix_markdown, "InlineCode")
+    tts.add_text_transformer(fix_markdown, "*")
 
     pattern_aggregator = (
-        PatternPairAggregator()
+        FixedPatternPairAggregator()
             .add_pattern(type="Bold", start_pattern="**", end_pattern="**", action=MatchAction.KEEP)
-            #.add_pattern(type="Italic", start_pattern="*", end_pattern="*", action=MatchAction.KEEP)
-            #.add_pattern(type="Underline", start_pattern="_", end_pattern="_", action=MatchAction.KEEP)
-            #.add_pattern(type="Strikethrough", start_pattern="~", end_pattern="~", action=MatchAction.KEEP)
-            #.add_pattern(type="Code", start_pattern="```", end_pattern="```", action=MatchAction.KEEP)
-            #.add_pattern(type="InlineCode", start_pattern="`", end_pattern="`", action=MatchAction.KEEP)
+            .add_pattern(type="Italic", start_pattern="*", end_pattern="*", action=MatchAction.KEEP)
+            .add_pattern(type="Underline", start_pattern="_", end_pattern="_", action=MatchAction.KEEP)
+            .add_pattern(type="Strikethrough", start_pattern="~", end_pattern="~", action=MatchAction.KEEP)
+            .add_pattern(type="Code", start_pattern="```", end_pattern="```", action=MatchAction.KEEP)
+            .add_pattern(type="InlineCode", start_pattern="`", end_pattern="`", action=MatchAction.KEEP)
     )
     
     llm_text_processor = LLMTextProcessor(text_aggregator=pattern_aggregator)
 
-    llm.register_direct_function(
-        get_current_weather,
-        cancel_on_interruption=False,  # Don't cancel on interruption
-    )
-    tools = ToolsSchema(standard_tools=[get_current_weather]) 
+    toolList = [get_current_weather, hangup]
+    for tool in toolList:
+        llm.register_direct_function(tool, cancel_on_interruption=False)
+    tools = ToolsSchema(standard_tools=toolList) 
 
     context = LLMContext(
         messages=[{"role": "system", "content": SYSTEM_PROMPT + INSTRUCTIONS}],
@@ -191,8 +189,14 @@ async def main(input_device: int, output_device: int):
 
 
 if __name__ == "__main__":
-    res: Tuple[AudioDevice, AudioDevice, int] = asyncio.run(
-        run_device_selector()  # runs the textual app that allows to select input device
-    )
-
+    if not os.environ.get("TESTING_AUDIO_DEVICES"):
+        res: Tuple[AudioDevice, AudioDevice, int] = asyncio.run(
+            run_device_selector()  # runs the textual app that allows to select input device
+        )
+    else:
+        res = (
+            AudioDevice(index=6, name="Test Input Device",structVersion=2, maxInputChannels=2, maxOutputChannels=0, defaultLowInputLatency=0.01, defaultLowOutputLatency=0.0, defaultHighInputLatency=0.1, defaultHighOutputLatency=0.0, defaultSampleRate=44100.0, hostApi=0),
+            AudioDevice(index=9, name="Test Output Device",structVersion=2, maxInputChannels=0, maxOutputChannels=2, defaultLowInputLatency=0.0, defaultLowOutputLatency=0.0, defaultHighInputLatency=0.0, defaultHighOutputLatency=0.0, defaultSampleRate=44100.0, hostApi=0),
+            0,
+        )
     asyncio.run(main(res[0].index, res[1].index))
