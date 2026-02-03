@@ -41,7 +41,7 @@ from tools import *
 
 load_dotenv(override=True)
 
-SYSTEM_PROMPT = "You are a helpful assistant. "
+SYSTEM_PROMPT = "You are a helpful assistant. Your responses should be concise and to the point. "
 INSTRUCTIONS = "Do not use the provided tools unless the users' request specifically asks for information that requires them. This does not need to be communicated to the user. Do not use emojis in your responses."
 
 logger.remove(0)
@@ -107,6 +107,29 @@ async def main(input_device: int, output_device: int):
         for old, new in replacements.items():
             text = text.replace(old, new)
         return text
+    
+    async def fix_units(text: str, type: str) -> str:
+        # Fix common unit formatting issues
+        # e.g., "10 kg" -> "10 kilograms", "5 m/s" -> "5 meters per second"
+        unit_mappings = {
+            r"(\d+)\s?kg\b": r"\1 kilograms",
+            r"(\d+)\s?g\b": r"\1 grams",
+            r"(\d+)\s?m/s\b": r"\1 meters per second",
+            r"(\d+)\s?km/h\b": r"\1 kilometers per hour",
+            r"(\d+)\s?°C\b": r"\1 degrees Celsius",
+            r"(\d+)\s?°F\b": r"\1 degrees Fahrenheit",
+            r"(\d+)\s?cm\b": r"\1 centimeters",
+            r"(\d+)\s?mm\b": r"\1 millimeters",
+            r"(\d+)\s?m\b": r"\1 meters",
+            r"(\d+)\s?km\b": r"\1 kilometers",
+            r"(\d+)\s?lbs\b": r"\1 pounds",
+            r"(\d+)\s?oz\b": r"\1 ounces",
+            r"(\d+)\s?ft\b": r"\1 feet",
+            r"(\d+)\s?in\b": r"\1 inches"
+        }
+        for pattern, replacement in unit_mappings.items():
+            text = re.sub(pattern, replacement, text)
+        return text
 
     stt = WhisperSTTService(device="cpu", model=Model.SMALL, no_speech_prob=0.2)
 
@@ -124,6 +147,7 @@ async def main(input_device: int, output_device: int):
     tts = PiperTTSService(voice_id="en_US-ryan-high")
 
     tts.add_text_transformer(fix_markdown, "*")
+    tts.add_text_transformer(fix_units,"*")
 
     pattern_aggregator = (
         FixedPatternPairAggregator()
@@ -137,7 +161,7 @@ async def main(input_device: int, output_device: int):
     
     llm_text_processor = LLMTextProcessor(text_aggregator=pattern_aggregator)
 
-    toolList = [get_current_weather, define_word, hangup]
+    toolList = [get_current_weather, wolframalpha_query, hangup]
     for tool in toolList:
         llm.register_direct_function(tool, cancel_on_interruption=False)
     tools = ToolsSchema(standard_tools=toolList) 

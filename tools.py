@@ -49,42 +49,30 @@ async def get_current_weather(params: FunctionCallParams, location: str, format:
     except (KeyError, IndexError) as e:
         await params.result_callback({"error": f"Failed to parse weather data: {e}"})
 
-async def define_word(params: FunctionCallParams, word: str):
-    """Lookup the definition of a word.
+async def wolframalpha_query(params: FunctionCallParams, query: str):
+    """Perform a WolframAlpha query. This can be used for complex calculations and factual questions.
 
     Args:
-        word: The word to lookup.
+        query: The query string to send to WolframAlpha.
     """
-    url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+    api_key = os.environ.get("WOLFRAMALPHAAPI")
+    if not api_key:
+        await params.result_callback({"error": "WOLFRAMALPHAAPI key not set"})
+        return
+    url = f"https://www.wolframalpha.com/api/v1/llm-api?input={query}&appid={api_key}&format=plaintext&units=nonmetric&reinterpret=true"
     try:
         response = requests.get(url)
-        if response.status_code == 404:
-            await params.result_callback({"error": f"Word '{word}' not found."})
-            return
-        response.raise_for_status()
-        data = response.json()
+        response.raise_for_status()  # Raise an exception for bad status codes
+        data = response.text
 
-        # Simplify the response
-        meanings = []
-        for entry in data:
-            for meaning in entry.get("meanings", []):
-                part_of_speech = meaning.get("partOfSpeech")
-                definitions = [d.get("definition") for d in meaning.get("definitions", [])[:2]]
-                meanings.append({
-                    "part_of_speech": part_of_speech,
-                    "definitions": definitions
-                })
-
-        phonetic = data[0].get("phonetic") or (data[0].get("phonetics")[0].get("text") if data[0].get("phonetics") else None)
-
-        result = {
-            "word": word,
-            "phonetic": phonetic,
-            "meanings": meanings[:3]  # Limit to 3 parts of speech for brevity
-        }
-        await params.result_callback(result)
-    except Exception as e:
-        await params.result_callback({"error": f"Failed to lookup word: {str(e)}"})
+        if "Result" in data:
+            await params.result_callback({"result": data})
+        else:
+            await params.result_callback({"error": "No result found in WolframAlpha response"})
+    except requests.exceptions.RequestException as e:
+        await params.result_callback({"error": f"API request failed: {e}"})
+    except (KeyError, IndexError) as e:
+        await params.result_callback({"error": f"Failed to parse WolframAlpha data: {e}"})
 
 async def hangup(params: FunctionCallParams):
     """Hang up the current call.
