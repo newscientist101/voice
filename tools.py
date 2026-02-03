@@ -1,5 +1,6 @@
 import os
 import requests
+import httpx
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.frames.frames import EndTaskFrame,TTSSpeakFrame
 from pipecat.processors.frame_processor import FrameDirection
@@ -82,3 +83,46 @@ async def hangup(params: FunctionCallParams):
 
     # Signal that the task should end after processing this frame
     await params.llm.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
+
+async def define_word(params: FunctionCallParams, word: str):
+    """Get the definition, phonetics, and usage examples of a word.
+
+    Args:
+        word: The word to define.
+    """
+    url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            if response.status_code == 404:
+                await params.result_callback({"error": f"Word '{word}' not found."})
+                return
+
+            response.raise_for_status()
+            data = response.json()
+
+        if not data or not isinstance(data, list):
+            await params.result_callback({"error": "Failed to parse dictionary data."})
+            return
+
+        entry = data[0]
+        result = {
+            "word": entry.get("word"),
+            "phonetic": entry.get("phonetic"),
+            "meanings": []
+        }
+
+        for meaning in entry.get("meanings", []):
+            m = {
+                "partOfSpeech": meaning.get("partOfSpeech"),
+                "definitions": [d.get("definition") for d in meaning.get("definitions", [])[:2]]
+            }
+            result["meanings"].append(m)
+
+        await params.result_callback(result)
+    except httpx.HTTPStatusError as e:
+        await params.result_callback({"error": f"API request failed with status {e.response.status_code}"})
+    except httpx.RequestError as e:
+        await params.result_callback({"error": f"API request failed: {e}"})
+    except Exception as e:
+        await params.result_callback({"error": f"An unexpected error occurred: {e}"})

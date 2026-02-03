@@ -161,7 +161,7 @@ async def main(input_device: int, output_device: int):
     
     llm_text_processor = LLMTextProcessor(text_aggregator=pattern_aggregator)
 
-    toolList = [get_current_weather, wolframalpha_query, hangup]
+    toolList = [get_current_weather, wolframalpha_query, hangup, define_word]
     for tool in toolList:
         llm.register_direct_function(tool, cancel_on_interruption=False)
     tools = ToolsSchema(standard_tools=toolList) 
