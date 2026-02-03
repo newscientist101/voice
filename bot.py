@@ -110,7 +110,16 @@ async def main(input_device: int, output_device: int):
 
     stt = WhisperSTTService(device="cpu", model=Model.SMALL, no_speech_prob=0.2)
 
-    llm = OLLamaLLMService(model="qwen3:8b")
+    """ 
+    current good model choices
+    ministral-3:8b-instruct-2512-q4_K_M
+    qwen3-vl:8b-instruct-q4_K_M
+    qwen3-vl:8b-thinking-q4_K_M # not sure about thinking 
+    ministral-3:8b 
+    qwen3:8b as backup
+    """
+    llm = OLLamaLLMService(model="qwen3-vl:8b-instruct-q4_K_M")
+
 
     tts = PiperTTSService(voice_id="en_US-ryan-high")
 
