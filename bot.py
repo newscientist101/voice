@@ -38,6 +38,7 @@ from pipecat.adapters.schemas.tools_schema import ToolsSchema
 
 from select_audio_device import AudioDevice, run_device_selector
 from tools import *
+from environment import ollama_running, start_ollama_process
 
 load_dotenv(override=True)
 
@@ -138,8 +139,8 @@ async def main(input_device: int, output_device: int):
     ministral-3:8b-instruct-2512-q4_K_M
     qwen3-vl:8b-instruct-q4_K_M
     qwen3-vl:8b-thinking-q4_K_M # not sure about thinking 
-    ministral-3:8b 
-    qwen3:8b as backup
+    qwen3-vl:8b-instruct-q8_0 # if speed is more important than quality
+    qwen3:8b # as backup
     """
     llm = OLLamaLLMService(model="qwen3-vl:8b-instruct-q4_K_M")
 
@@ -228,8 +229,15 @@ if __name__ == "__main__":
         )
     else:
         res = (
-            AudioDevice(index=6, name="Test Input Device",structVersion=2, maxInputChannels=2, maxOutputChannels=0, defaultLowInputLatency=0.01, defaultLowOutputLatency=0.0, defaultHighInputLatency=0.1, defaultHighOutputLatency=0.0, defaultSampleRate=44100.0, hostApi=0),
+            AudioDevice(index=5, name="Test Input Device",structVersion=2, maxInputChannels=2, maxOutputChannels=0, defaultLowInputLatency=0.01, defaultLowOutputLatency=0.0, defaultHighInputLatency=0.1, defaultHighOutputLatency=0.0, defaultSampleRate=44100.0, hostApi=0),
             AudioDevice(index=9, name="Test Output Device",structVersion=2, maxInputChannels=0, maxOutputChannels=2, defaultLowInputLatency=0.0, defaultLowOutputLatency=0.0, defaultHighInputLatency=0.0, defaultHighOutputLatency=0.0, defaultSampleRate=44100.0, hostApi=0),
             0,
         )
+    if not ollama_running():
+        print("Ollama process not running. Starting Ollama...")
+        if not start_ollama_process():
+            print("Failed to start Ollama process. Please ensure Ollama is installed and accessible.")
+            sys.exit(1)
+        else:
+            print("Ollama process started successfully.")
     asyncio.run(main(res[0].index, res[1].index))

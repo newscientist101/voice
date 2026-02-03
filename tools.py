@@ -1,5 +1,6 @@
 import os
-import requests
+import httpx
+
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.frames.frames import EndTaskFrame,TTSSpeakFrame
 from pipecat.processors.frame_processor import FrameDirection
@@ -30,9 +31,10 @@ async def get_current_weather(params: FunctionCallParams, location: str, format:
     url = f"http://api.openweathermap.org/data/2.5/weather?q={location}&appid={api_key}&units={units}"
 
     try:
-        response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for bad status codes
-        data = response.json()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()  # Raise an exception for bad status codes
+            data = response.json()
 
         temp_unit = "°F" if units == "imperial" else "°C"
         wind_unit = "mph" if units == "imperial" else "m/s"
@@ -44,13 +46,18 @@ async def get_current_weather(params: FunctionCallParams, location: str, format:
             "wind_speed": f"{data['wind']['speed']} {wind_unit}",
         }
         await params.result_callback(weather_data)
-    except requests.exceptions.RequestException as e:
+
+    except httpx.HTTPStatusError as e:
+        await params.result_callback({"error": f"API request failed with status {e.response.status_code}"})
+    except httpx.RequestError as e:
         await params.result_callback({"error": f"API request failed: {e}"})
     except (KeyError, IndexError) as e:
         await params.result_callback({"error": f"Failed to parse weather data: {e}"})
+    except Exception as e:
+        await params.result_callback({"error": f"An unexpected error occurred: {e}"})
 
 async def wolframalpha_query(params: FunctionCallParams, query: str):
-    """Perform a WolframAlpha query. This can be used for complex calculations and factual questions.
+    """Perform a WolframAlpha query. This can be used for complex calculations and fact lookups. Convert your query to simplified keyword queries whenever possible (e.g. convert "how many people live in France" to "France population").
 
     Args:
         query: The query string to send to WolframAlpha.
@@ -61,15 +68,19 @@ async def wolframalpha_query(params: FunctionCallParams, query: str):
         return
     url = f"https://www.wolframalpha.com/api/v1/llm-api?input={query}&appid={api_key}&format=plaintext&units=nonmetric&reinterpret=true"
     try:
-        response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for bad status codes
-        data = response.text
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()  # Raise an exception for bad status codes
+            data = response.text
 
         if "Result" in data:
             await params.result_callback({"result": data})
         else:
             await params.result_callback({"error": "No result found in WolframAlpha response"})
-    except requests.exceptions.RequestException as e:
+
+    except httpx.HTTPStatusError as e:
+        await params.result_callback({"error": f"API request failed with status {e.response.status_code}"})
+    except httpx.RequestError as e:
         await params.result_callback({"error": f"API request failed: {e}"})
     except (KeyError, IndexError) as e:
         await params.result_callback({"error": f"Failed to parse WolframAlpha data: {e}"})

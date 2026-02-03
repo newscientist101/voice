@@ -9,3 +9,11 @@ This journal records critical learnings discovered while building tools for the 
 ## 2025-05-15 - Existing tool bug discovery
 **Learning:** Found an `IndexError` in `get_current_weather` when the location had no commas (e.g., "London"). This caused existing tests to fail even though they were previously present.
 **Action:** Fixed `get_current_weather` to check if at least one comma exists before attempting to split and access the state part. Always verify existing tests when adding new ones to catch regressions or pre-existing issues.
+
+## 2026-02-02 - User preferences
+**Learning:** The user requested that I not create tools that replicate basic LLM abilities like dictionary word lookups and trivia.
+**Action:** Always design tools that are legitimately useful and don't copy existing functionality.
+
+## 2026-02-03 - Blocking I/O in Async Tools
+**Learning:** Using blocking libraries like `requests` in Pipecat direct functions (which are async) can freeze the event loop, causing audio stuttering or latency in the bot.
+**Action:** Always use an asynchronous HTTP client like `httpx` for making API calls in tools.
