@@ -1,5 +1,6 @@
 import os
 import httpx
+import urllib.parse
 
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.frames.frames import EndTaskFrame,TTSSpeakFrame
@@ -84,6 +85,37 @@ async def wolframalpha_query(params: FunctionCallParams, query: str):
         await params.result_callback({"error": f"API request failed: {e}"})
     except (KeyError, IndexError) as e:
         await params.result_callback({"error": f"Failed to parse WolframAlpha data: {e}"})
+
+async def wikipedia_summary(params: FunctionCallParams, topic: str):
+    """Get a concise summary of a topic from Wikipedia. Use this when the user asks for general information, history, or a description of a person, place, or concept.
+
+    Args:
+        topic: The topic to search for on Wikipedia.
+    """
+    encoded_topic = urllib.parse.quote(topic.replace(' ', '_'))
+    url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{encoded_topic}"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            if response.status_code == 404:
+                await params.result_callback({"error": f"No Wikipedia article found for '{topic}'"})
+                return
+            response.raise_for_status()
+            data = response.json()
+
+        result = {
+            "title": data.get("title"),
+            "summary": data.get("extract"),
+            "url": data.get("content_urls", {}).get("desktop", {}).get("page")
+        }
+        await params.result_callback(result)
+
+    except httpx.HTTPStatusError as e:
+        await params.result_callback({"error": f"Wikipedia API error: {e.response.status_code}"})
+    except httpx.RequestError as e:
+        await params.result_callback({"error": f"Wikipedia request failed: {e}"})
+    except Exception as e:
+        await params.result_callback({"error": f"An unexpected error occurred: {e}"})
 
 async def hangup(params: FunctionCallParams):
     """Hang up the current call.

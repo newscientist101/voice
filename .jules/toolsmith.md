@@ -17,3 +17,7 @@ This journal records critical learnings discovered while building tools for the 
 ## 2026-02-03 - Blocking I/O in Async Tools
 **Learning:** Using blocking libraries like `requests` in Pipecat direct functions (which are async) can freeze the event loop, causing audio stuttering or latency in the bot.
 **Action:** Always use an asynchronous HTTP client like `httpx` for making API calls in tools.
+
+## 2026-02-15 - Mocking Async Clients in Tests
+**Learning:** When mocking `httpx.AsyncClient`, standard `MagicMock` may appear to work in some environments but can fail with `TypeError: object Mock can't be used in 'await' expression` in others. Properly mocking the async context manager and the `get` method with `AsyncMock` is essential for test stability.
+**Action:** Always use `AsyncMock` for async methods and correctly set up the `__aenter__` return value for async context managers in unit tests.
