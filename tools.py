@@ -125,3 +125,35 @@ async def hangup(params: FunctionCallParams):
 
     # Signal that the task should end after processing this frame
     await params.llm.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
+async def get_news_headlines(params: FunctionCallParams, category: str = "World"):
+    """Get the latest news headlines for a specific category.
+
+    Args:
+        category: The category of news to retrieve. Options: "Business", "Entertainment", "Health", "Science", "Sports", "Technology", "US", "World". Default is "World".
+    """
+    url = "https://ok.surf/api/v1/cors/news-feed"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+        if category not in data:
+            await params.result_callback({"error": f"Category '{category}' not found. Available categories: {', '.join(data.keys())}"})
+            return
+
+        headlines = []
+        for article in data[category][:5]:  # Get top 5 headlines
+            headlines.append({
+                "title": article.get("title"),
+                "source": article.get("source")
+            })
+
+        await params.result_callback({"category": category, "headlines": headlines})
+
+    except httpx.HTTPStatusError as e:
+        await params.result_callback({"error": f"News API error: {e.response.status_code}"})
+    except httpx.RequestError as e:
+        await params.result_callback({"error": f"News request failed: {e}"})
+    except Exception as e:
+        await params.result_callback({"error": f"An unexpected error occurred: {e}"})

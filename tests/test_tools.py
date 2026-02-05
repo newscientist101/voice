@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch, Mock, AsyncMock, MagicMock
 import urllib.parse
 
-from tools import get_current_weather, wikipedia_summary
+from tools import get_current_weather, wikipedia_summary, get_news_headlines
 
 class TestTools(unittest.IsolatedAsyncioTestCase):
 
@@ -136,3 +136,63 @@ class TestTools(unittest.IsolatedAsyncioTestCase):
 
         # Assert
         mock_params.result_callback.assert_awaited_once_with({"error": f"No Wikipedia article found for '{topic}'"})
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_get_news_headlines_success(self, mock_client_class):
+        # Arrange
+        category = "Technology"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "Technology": [
+                {"title": "Tech News 1", "source": "Source 1"},
+                {"title": "Tech News 2", "source": "Source 2"}
+            ]
+        }
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await get_news_headlines(mock_params, category)
+
+        # Assert
+        mock_client.get.assert_called_once_with("https://ok.surf/api/v1/cors/news-feed")
+        expected_result = {
+            "category": "Technology",
+            "headlines": [
+                {"title": "Tech News 1", "source": "Source 1"},
+                {"title": "Tech News 2", "source": "Source 2"}
+            ]
+        }
+        mock_params.result_callback.assert_awaited_once_with(expected_result)
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_get_news_headlines_invalid_category(self, mock_client_class):
+        # Arrange
+        category = "InvalidCategory"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "World": []
+        }
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await get_news_headlines(mock_params, category)
+
+        # Assert
+        mock_params.result_callback.assert_awaited_once()
+        args, _ = mock_params.result_callback.call_args
+        self.assertIn("error", args[0])
+        self.assertIn("Category 'InvalidCategory' not found", args[0]["error"])
