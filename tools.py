@@ -157,3 +157,49 @@ async def get_news_headlines(params: FunctionCallParams, category: str = "World"
         await params.result_callback({"error": f"News request failed: {e}"})
     except Exception as e:
         await params.result_callback({"error": f"An unexpected error occurred: {e}"})
+
+async def convert_currency(params: FunctionCallParams, amount: float, from_currency: str, to_currency: str):
+    """Convert an amount from one currency to another using real-time exchange rates.
+
+    Args:
+        amount: The amount of money to convert.
+        from_currency: The source currency code (e.g., "USD", "EUR", "GBP").
+        to_currency: The target currency code (e.g., "JPY", "CAD", "AUD").
+    """
+    url = f"https://open.er-api.com/v6/latest/{from_currency.upper()}"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+        if data.get("result") == "error":
+            error_type = data.get("error-type", "unknown error")
+            await params.result_callback({"error": f"Currency API error: {error_type}"})
+            return
+
+        rates = data.get("rates", {})
+        target_code = to_currency.upper()
+        if target_code not in rates:
+            await params.result_callback({"error": f"Target currency '{to_currency}' not found."})
+            return
+
+        rate = rates[target_code]
+        converted_amount = amount * rate
+
+        result = {
+            "from": from_currency.upper(),
+            "to": target_code,
+            "amount": amount,
+            "converted_amount": round(converted_amount, 2),
+            "rate": rate,
+            "last_updated": data.get("time_last_update_utc")
+        }
+        await params.result_callback(result)
+
+    except httpx.HTTPStatusError as e:
+        await params.result_callback({"error": f"Currency API error: {e.response.status_code}"})
+    except httpx.RequestError as e:
+        await params.result_callback({"error": f"Currency request failed: {e}"})
+    except Exception as e:
+        await params.result_callback({"error": f"An unexpected error occurred: {e}"})
