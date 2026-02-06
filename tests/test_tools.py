@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch, Mock, AsyncMock, MagicMock
 import urllib.parse
 
-from tools import get_current_weather, wikipedia_summary, get_news_headlines
+from tools import get_current_weather, wikipedia_summary, get_news_headlines, convert_currency
 
 class TestTools(unittest.IsolatedAsyncioTestCase):
 
@@ -196,3 +196,92 @@ class TestTools(unittest.IsolatedAsyncioTestCase):
         args, _ = mock_params.result_callback.call_args
         self.assertIn("error", args[0])
         self.assertIn("Category 'InvalidCategory' not found", args[0]["error"])
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_convert_currency_success(self, mock_client_class):
+        # Arrange
+        amount = 100
+        from_currency = "USD"
+        to_currency = "EUR"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "result": "success",
+            "base_code": "USD",
+            "rates": {"EUR": 0.85},
+            "time_last_update_utc": "Fri, 06 Feb 2026 00:02:31 +0000"
+        }
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await convert_currency(mock_params, amount, from_currency, to_currency)
+
+        # Assert
+        mock_client.get.assert_called_once_with(f"https://open.er-api.com/v6/latest/USD")
+        expected_result = {
+            "from": "USD",
+            "to": "EUR",
+            "amount": 100,
+            "converted_amount": 85.0,
+            "rate": 0.85,
+            "last_updated": "Fri, 06 Feb 2026 00:02:31 +0000"
+        }
+        mock_params.result_callback.assert_awaited_once_with(expected_result)
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_convert_currency_invalid_base(self, mock_client_class):
+        # Arrange
+        amount = 100
+        from_currency = "INVALID"
+        to_currency = "EUR"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "result": "error",
+            "error-type": "unsupported-code"
+        }
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await convert_currency(mock_params, amount, from_currency, to_currency)
+
+        # Assert
+        mock_params.result_callback.assert_awaited_once_with({"error": "Currency API error: unsupported-code"})
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_convert_currency_invalid_target(self, mock_client_class):
+        # Arrange
+        amount = 100
+        from_currency = "USD"
+        to_currency = "INVALID"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "result": "success",
+            "rates": {"EUR": 0.85}
+        }
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await convert_currency(mock_params, amount, from_currency, to_currency)
+
+        # Assert
+        mock_params.result_callback.assert_awaited_once_with({"error": "Target currency 'INVALID' not found."})
