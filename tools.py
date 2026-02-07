@@ -203,3 +203,45 @@ async def convert_currency(params: FunctionCallParams, amount: float, from_curre
         await params.result_callback({"error": f"Currency request failed: {e}"})
     except Exception as e:
         await params.result_callback({"error": f"An unexpected error occurred: {e}"})
+
+async def get_local_time(params: FunctionCallParams, location: str = None):
+    """Get the current local time for a specific location. If no location is provided, it uses the bot's current location.
+
+    Args:
+        location: The city or location, e.g. "Tokyo", "London", "Paris", or "New York".
+    """
+    url = "https://wttr.in/"
+    if location:
+        # Replace spaces with + for wttr.in and encode
+        url += urllib.parse.quote(location.replace(' ', '+'))
+
+    url += "?format=%l:+%T+%Z"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.text.strip()
+
+        if not data or ":" not in data:
+            await params.result_callback({"error": f"Could not retrieve time for '{location}'"})
+            return
+
+        parts = data.split(": ", 1)
+        loc_name = parts[0]
+        time_and_zone = parts[1].split(" ")
+
+        current_time = time_and_zone[0]
+        timezone = time_and_zone[1] if len(time_and_zone) > 1 else "Unknown"
+
+        result = {
+            "location": loc_name,
+            "current_time": current_time,
+            "timezone": timezone
+        }
+        await params.result_callback(result)
+
+    except httpx.HTTPStatusError as e:
+        await params.result_callback({"error": f"Time API error: {e.response.status_code}"})
+    except Exception as e:
+        await params.result_callback({"error": f"Failed to get local time: {str(e)}"})

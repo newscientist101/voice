@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch, Mock, AsyncMock, MagicMock
 import urllib.parse
 
-from tools import get_current_weather, wikipedia_summary, get_news_headlines, convert_currency
+from tools import get_current_weather, wikipedia_summary, get_news_headlines, convert_currency, get_local_time
 
 class TestTools(unittest.IsolatedAsyncioTestCase):
 
@@ -285,3 +285,60 @@ class TestTools(unittest.IsolatedAsyncioTestCase):
 
         # Assert
         mock_params.result_callback.assert_awaited_once_with({"error": "Target currency 'INVALID' not found."})
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_get_local_time_success(self, mock_client_class):
+        # Arrange
+        location = "Tokyo"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "Tokyo: 07:50:12+0900 Asia/Tokyo"
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await get_local_time(mock_params, location)
+
+        # Assert
+        mock_client.get.assert_called_once()
+        args, _ = mock_client.get.call_args
+        self.assertIn("Tokyo", args[0])
+        self.assertIn("format=%l:+%T+%Z", args[0])
+
+        expected_result = {
+            "location": "Tokyo",
+            "current_time": "07:50:12+0900",
+            "timezone": "Asia/Tokyo"
+        }
+        mock_params.result_callback.assert_awaited_once_with(expected_result)
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_get_local_time_no_location(self, mock_client_class):
+        # Arrange
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "London, United Kingdom: 22:50:12+0000 Europe/London"
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await get_local_time(mock_params)
+
+        # Assert
+        mock_client.get.assert_called_once()
+        expected_result = {
+            "location": "London, United Kingdom",
+            "current_time": "22:50:12+0000",
+            "timezone": "Europe/London"
+        }
+        mock_params.result_callback.assert_awaited_once_with(expected_result)

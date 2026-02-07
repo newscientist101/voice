@@ -29,3 +29,7 @@ This journal records critical learnings discovered while building tools for the 
 ## 2026-02-05 - Currency API update
 **Learning:** The `api.exchangerate.host` API now requires an access key. An alternative free API is `open.er-api.com`.
 **Action:** Prefer `open.er-api.com` for currency conversion tools if no key is provided.
+
+## 2026-02-07 - Flexible Time Lookup with wttr.in
+**Learning:** The `wttr.in` service can be used for more than just weather. By using format strings like `?format=%l:+%T+%Z`, it can serve as a flexible and free time-at-location API that handles geocoding and timezone lookups internally. It defaults to UTC if a location is not recognized.
+**Action:** Use `wttr.in` for simple time and location lookups when a specialized time API is unavailable or requires complex geocoding.
