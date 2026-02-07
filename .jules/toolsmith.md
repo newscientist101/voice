@@ -29,3 +29,7 @@ This journal records critical learnings discovered while building tools for the 
 ## 2026-02-05 - Currency API update
 **Learning:** The `api.exchangerate.host` API now requires an access key. An alternative free API is `open.er-api.com`.
 **Action:** Prefer `open.er-api.com` for currency conversion tools if no key is provided.
+
+## 2026-02-07 - Time Lookup tool rejected
+**Learning:** My local time lookup tool was rejected because its functionality could easily be handled by a Wolfram Alpha query ("time in tokyo")
+**Action:** When designing a tool, make sure that it isn't a simple fact or data lookup tool.
