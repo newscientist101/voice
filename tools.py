@@ -58,7 +58,7 @@ async def get_current_weather(params: FunctionCallParams, location: str, format:
         await params.result_callback({"error": f"An unexpected error occurred: {e}"})
 
 async def wolframalpha_query(params: FunctionCallParams, query: str):
-    """Perform a WolframAlpha query. This can be used for complex calculations and fact lookups. Convert your query to simplified keyword queries whenever possible (e.g. convert "how many people live in France" to "France population").
+    """Perform a WolframAlpha query. This can be used for complex calculations and fact lookups like local time for a specific location. Convert your query to simplified keyword queries whenever possible (e.g. convert "how many people live in France" to "France population").
 
     Args:
         query: The query string to send to WolframAlpha.
