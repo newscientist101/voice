@@ -203,3 +203,43 @@ async def convert_currency(params: FunctionCallParams, amount: float, from_curre
         await params.result_callback({"error": f"Currency request failed: {e}"})
     except Exception as e:
         await params.result_callback({"error": f"An unexpected error occurred: {e}"})
+
+async def get_ip_info(params: FunctionCallParams, ip_or_domain: str = ""):
+    """Get geolocation and network information for an IP address or domain name.
+
+    Args:
+        ip_or_domain: The IP address or domain name to look up. If empty, the bot's current public IP will be used.
+    """
+    url = f"http://ip-api.com/json/{ip_or_domain}"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+        if data.get("status") == "fail":
+            await params.result_callback({"error": f"IP lookup failed: {data.get('message')}"})
+            return
+
+        # Return relevant fields
+        result = {
+            "query": data.get("query"),
+            "status": data.get("status"),
+            "country": data.get("country"),
+            "countryCode": data.get("countryCode"),
+            "regionName": data.get("regionName"),
+            "city": data.get("city"),
+            "zip": data.get("zip"),
+            "timezone": data.get("timezone"),
+            "isp": data.get("isp"),
+            "org": data.get("org"),
+            "as": data.get("as")
+        }
+        await params.result_callback(result)
+
+    except httpx.HTTPStatusError as e:
+        await params.result_callback({"error": f"IP API error: {e.response.status_code}"})
+    except httpx.RequestError as e:
+        await params.result_callback({"error": f"IP request failed: {e}"})
+    except Exception as e:
+        await params.result_callback({"error": f"An unexpected error occurred: {e}"})

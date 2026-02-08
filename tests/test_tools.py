@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch, Mock, AsyncMock, MagicMock
 import urllib.parse
 
-from tools import get_current_weather, wikipedia_summary, get_news_headlines, convert_currency
+from tools import get_current_weather, wikipedia_summary, get_news_headlines, convert_currency, get_ip_info
 
 class TestTools(unittest.IsolatedAsyncioTestCase):
 
@@ -285,3 +285,98 @@ class TestTools(unittest.IsolatedAsyncioTestCase):
 
         # Assert
         mock_params.result_callback.assert_awaited_once_with({"error": "Target currency 'INVALID' not found."})
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_get_ip_info_success_ip(self, mock_client_class):
+        # Arrange
+        ip = "8.8.8.8"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "status": "success",
+            "country": "United States",
+            "countryCode": "US",
+            "regionName": "Virginia",
+            "city": "Ashburn",
+            "zip": "20149",
+            "timezone": "America/New_York",
+            "isp": "Google LLC",
+            "org": "Google Public DNS",
+            "as": "AS15169 Google LLC",
+            "query": "8.8.8.8"
+        }
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await get_ip_info(mock_params, ip)
+
+        # Assert
+        mock_client.get.assert_called_once_with(f"http://ip-api.com/json/{ip}")
+        expected_result = {
+            "query": "8.8.8.8",
+            "status": "success",
+            "country": "United States",
+            "countryCode": "US",
+            "regionName": "Virginia",
+            "city": "Ashburn",
+            "zip": "20149",
+            "timezone": "America/New_York",
+            "isp": "Google LLC",
+            "org": "Google Public DNS",
+            "as": "AS15169 Google LLC"
+        }
+        mock_params.result_callback.assert_awaited_once_with(expected_result)
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_get_ip_info_success_empty(self, mock_client_class):
+        # Arrange
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "status": "success",
+            "query": "1.2.3.4"
+        }
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await get_ip_info(mock_params)
+
+        # Assert
+        mock_client.get.assert_called_once_with("http://ip-api.com/json/")
+        mock_params.result_callback.assert_awaited_once()
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_get_ip_info_fail(self, mock_client_class):
+        # Arrange
+        invalid_ip = "invalid"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "status": "fail",
+            "message": "invalid query"
+        }
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await get_ip_info(mock_params, invalid_ip)
+
+        # Assert
+        mock_params.result_callback.assert_awaited_once_with({"error": "IP lookup failed: invalid query"})
