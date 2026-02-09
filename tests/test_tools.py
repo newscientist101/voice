@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch, Mock, AsyncMock, MagicMock
 import urllib.parse
 
-from tools import get_current_weather, wikipedia_summary, get_news_headlines, convert_currency, get_ip_info
+from tools import get_current_weather, search_hacker_news, wikipedia_summary, get_news_headlines, convert_currency, get_ip_info
 
 class TestTools(unittest.IsolatedAsyncioTestCase):
 
@@ -356,6 +356,71 @@ class TestTools(unittest.IsolatedAsyncioTestCase):
         # Assert
         mock_client.get.assert_called_once_with("http://ip-api.com/json/")
         mock_params.result_callback.assert_awaited_once()
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_search_hacker_news_success(self, mock_client_class):
+        # Arrange
+        query = "pipecat"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "hits": [
+                {
+                    "title": "Show HN: Pipecat",
+                    "url": "https://github.com/pipecat-ai/pipecat",
+                    "points": 100,
+                    "author": "author1",
+                    "objectID": "12345"
+                }
+            ]
+        }
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await search_hacker_news(mock_params, query)
+
+        # Assert
+        mock_client.get.assert_called_once_with(f"https://hn.algolia.com/api/v1/search?query={query}&tags=story")
+        expected_result = {
+            "query": query,
+            "results": [
+                {
+                    "title": "Show HN: Pipecat",
+                    "url": "https://github.com/pipecat-ai/pipecat",
+                    "points": 100,
+                    "author": "author1",
+                    "discussion_url": "https://news.ycombinator.com/item?id=12345"
+                }
+            ]
+        }
+        mock_params.result_callback.assert_awaited_once_with(expected_result)
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_search_hacker_news_no_results(self, mock_client_class):
+        # Arrange
+        query = "nonexistent_query_123456"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"hits": []}
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await search_hacker_news(mock_params, query)
+
+        # Assert
+        mock_params.result_callback.assert_awaited_once_with({"message": f"No Hacker News stories found for '{query}'"})
 
     @patch('tools.httpx.AsyncClient')
     async def test_get_ip_info_fail(self, mock_client_class):

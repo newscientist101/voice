@@ -57,6 +57,44 @@ async def get_current_weather(params: FunctionCallParams, location: str, format:
     except Exception as e:
         await params.result_callback({"error": f"An unexpected error occurred: {e}"})
 
+async def search_hacker_news(params: FunctionCallParams, query: str):
+    """Search Hacker News for stories matching a query. Use this to find technical discussions, news, and community feedback on specific topics or projects.
+
+    Args:
+        query: The search term to look for on Hacker News.
+    """
+    encoded_query = urllib.parse.quote(query)
+    url = f"https://hn.algolia.com/api/v1/search?query={encoded_query}&tags=story"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+        hits = data.get("hits", [])
+        if not hits:
+            await params.result_callback({"message": f"No Hacker News stories found for '{query}'"})
+            return
+
+        results = []
+        for hit in hits[:5]:
+            results.append({
+                "title": hit.get("title"),
+                "url": hit.get("url"),
+                "points": hit.get("points"),
+                "author": hit.get("author"),
+                "discussion_url": f"https://news.ycombinator.com/item?id={hit.get('objectID')}"
+            })
+
+        await params.result_callback({"query": query, "results": results})
+
+    except httpx.HTTPStatusError as e:
+        await params.result_callback({"error": f"Hacker News API error: {e.response.status_code}"})
+    except httpx.RequestError as e:
+        await params.result_callback({"error": f"Hacker News request failed: {e}"})
+    except Exception as e:
+        await params.result_callback({"error": f"An unexpected error occurred: {e}"})
+
 async def wolframalpha_query(params: FunctionCallParams, query: str):
     """Perform a WolframAlpha query. This can be used for complex calculations and fact lookups like local time for a specific location. Convert your query to simplified keyword queries whenever possible (e.g. convert "how many people live in France" to "France population").
 

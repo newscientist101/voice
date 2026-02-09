@@ -33,3 +33,7 @@ This journal records critical learnings discovered while building tools for the 
 ## 2026-02-07 - Time Lookup tool rejected
 **Learning:** My local time lookup tool was rejected because its functionality could easily be handled by a Wolfram Alpha query ("time in tokyo")
 **Action:** When designing a tool, make sure that it isn't a simple fact or data lookup tool.
+
+## 2026-03-03 - Hacker News API
+**Learning:** The Algolia Hacker News API (`https://hn.algolia.com/api/v1/search`) is a robust, free, and no-key-required resource for technical news and discussions. It provides an `objectID` which can be used to construct a direct link to the discussion thread: `https://news.ycombinator.com/item?id={objectID}`.
+**Action:** Use this API for HN-specific queries to get more relevant results than general news APIs.
