@@ -2,11 +2,11 @@
 
 This journal records critical learnings discovered while building tools for the Pipecat bot.
 
-## 2025-05-15 - Journal Initialized
+## 2025-01-31 - Journal Initialized
 **Learning:** Initialized Toolsmith's journal to track critical learnings.
 **Action:** Always check this file before starting a new tool implementation.
 
-## 2025-05-15 - Existing tool bug discovery
+## 2025-02-01 - Existing tool bug discovery
 **Learning:** Found an `IndexError` in `get_current_weather` when the location had no commas (e.g., "London"). This caused existing tests to fail even though they were previously present.
 **Action:** Fixed `get_current_weather` to check if at least one comma exists before attempting to split and access the state part. Always verify existing tests when adding new ones to catch regressions or pre-existing issues.
 
@@ -18,7 +18,7 @@ This journal records critical learnings discovered while building tools for the 
 **Learning:** Using blocking libraries like `requests` in Pipecat direct functions (which are async) can freeze the event loop, causing audio stuttering or latency in the bot.
 **Action:** Always use an asynchronous HTTP client like `httpx` for making API calls in tools.
 
-## 2026-02-15 - Mocking Async Clients in Tests
+## 2026-02-04 - Mocking Async Clients in Tests
 **Learning:** When mocking `httpx.AsyncClient`, standard `MagicMock` may appear to work in some environments but can fail with `TypeError: object Mock can't be used in 'await' expression` in others. Properly mocking the async context manager and the `get` method with `AsyncMock` is essential for test stability.
 **Action:** Always use `AsyncMock` for async methods and correctly set up the `__aenter__` return value for async context managers in unit tests.
 
@@ -33,3 +33,7 @@ This journal records critical learnings discovered while building tools for the 
 ## 2026-02-07 - Time Lookup tool rejected
 **Learning:** My local time lookup tool was rejected because its functionality could easily be handled by a Wolfram Alpha query ("time in tokyo")
 **Action:** When designing a tool, make sure that it isn't a simple fact or data lookup tool.
+
+## 2026-02-09 - Hacker News tool rejected
+**Learning:** My Hacker News search tool was rejected for not providing enough benefit.
+**Action:** Avoid designing tools whose functionality is centered around keyword seraches.
