@@ -57,6 +57,61 @@ async def get_current_weather(params: FunctionCallParams, location: str, format:
     except Exception as e:
         await params.result_callback({"error": f"An unexpected error occurred: {e}"})
 
+async def get_crypto_price(params: FunctionCallParams, coin: str, vs_currency: str = "usd"):
+    """Get the current price, 24h change, and market cap rank of a cryptocurrency.
+
+    Args:
+        coin: The name or symbol of the cryptocurrency (e.g., "bitcoin", "eth", "solana").
+        vs_currency: The target currency to get the price in (e.g., "usd", "eur", "jpy"). Default is "usd".
+    """
+    search_url = f"https://api.coingecko.com/api/v3/search?query={coin}"
+    try:
+        async with httpx.AsyncClient() as client:
+            # Step 1: Search for the coin to get its ID
+            search_response = await client.get(search_url)
+            search_response.raise_for_status()
+            search_data = search_response.json()
+
+            if not search_data.get("coins"):
+                await params.result_callback({"error": f"No cryptocurrency found for '{coin}'"})
+                return
+
+            # Take the first result as the most likely match
+            coin_id = search_data["coins"][0]["id"]
+            coin_name = search_data["coins"][0]["name"]
+            coin_symbol = search_data["coins"][0]["symbol"]
+
+            # Step 2: Get the price data using the coin ID
+            vs_curr = vs_currency.lower()
+            price_url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies={vs_curr}&include_24hr_change=true&include_market_cap=true"
+
+            price_response = await client.get(price_url)
+            price_response.raise_for_status()
+            price_data = price_response.json()
+
+            if coin_id not in price_data:
+                await params.result_callback({"error": f"Failed to retrieve price for {coin_name} ({coin_id})"})
+                return
+
+            coin_price_data = price_data[coin_id]
+
+            result = {
+                "id": coin_id,
+                "name": coin_name,
+                "symbol": coin_symbol,
+                "current_price": f"{coin_price_data.get(vs_curr)} {vs_curr.upper()}",
+                "change_24h": f"{coin_price_data.get(f'{vs_curr}_24h_change', 0):.2f}%",
+                "market_cap_rank": search_data["coins"][0].get("market_cap_rank")
+            }
+            await params.result_callback(result)
+
+    except httpx.HTTPStatusError as e:
+        await params.result_callback({"error": f"CoinGecko API error: {e.response.status_code}"})
+    except httpx.RequestError as e:
+        await params.result_callback({"error": f"CoinGecko request failed: {e}"})
+    except Exception as e:
+        await params.result_callback({"error": f"An unexpected error occurred: {e}"})
+
 async def wolframalpha_query(params: FunctionCallParams, query: str):
     """Perform a WolframAlpha query. This can be used for complex calculations and fact lookups like local time for a specific location. Convert your query to simplified keyword queries whenever possible (e.g. convert "how many people live in France" to "France population").
 

@@ -37,3 +37,7 @@ This journal records critical learnings discovered while building tools for the 
 ## 2026-02-09 - Hacker News tool rejected
 **Learning:** My Hacker News search tool was rejected for not providing enough benefit.
 **Action:** Avoid designing tools whose functionality is centered around keyword seraches.
+
+## 2026-02-10 - CoinGecko API Two-Step Process
+**Learning:** For APIs like CoinGecko that require specific IDs (e.g., "ethereum") rather than symbols (e.g., "eth"), using a two-step process (Search then Price) provides a much better user experience by automatically resolving user input.
+**Action:** Always check if a free API has a search or resolution endpoint to handle human-friendly inputs before falling back to requiring strict IDs.

@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch, Mock, AsyncMock, MagicMock
 import urllib.parse
 
-from tools import get_current_weather, wikipedia_summary, get_news_headlines, convert_currency, get_ip_info
+from tools import get_current_weather, wikipedia_summary, get_news_headlines, convert_currency, get_ip_info, get_crypto_price
 
 class TestTools(unittest.IsolatedAsyncioTestCase):
 
@@ -380,3 +380,67 @@ class TestTools(unittest.IsolatedAsyncioTestCase):
 
         # Assert
         mock_params.result_callback.assert_awaited_once_with({"error": "IP lookup failed: invalid query"})
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_get_crypto_price_success(self, mock_client_class):
+        # Arrange
+        coin = "bitcoin"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        # Mock search response
+        mock_search_response = MagicMock()
+        mock_search_response.status_code = 200
+        mock_search_response.json.return_value = {
+            "coins": [{"id": "bitcoin", "name": "Bitcoin", "symbol": "BTC", "market_cap_rank": 1}]
+        }
+
+        # Mock price response
+        mock_price_response = MagicMock()
+        mock_price_response.status_code = 200
+        mock_price_response.json.return_value = {
+            "bitcoin": {"usd": 50000, "usd_24h_change": 5.5}
+        }
+
+        mock_client.get = AsyncMock(side_effect=[mock_search_response, mock_price_response])
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await get_crypto_price(mock_params, coin)
+
+        # Assert
+        self.assertEqual(mock_client.get.call_count, 2)
+        expected_result = {
+            "id": "bitcoin",
+            "name": "Bitcoin",
+            "symbol": "BTC",
+            "current_price": "50000 USD",
+            "change_24h": "5.50%",
+            "market_cap_rank": 1
+        }
+        mock_params.result_callback.assert_awaited_once_with(expected_result)
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_get_crypto_price_not_found(self, mock_client_class):
+        # Arrange
+        coin = "nonexistentcoin"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        # Mock search response with no coins
+        mock_search_response = MagicMock()
+        mock_search_response.status_code = 200
+        mock_search_response.json.return_value = {"coins": []}
+
+        mock_client.get = AsyncMock(return_value=mock_search_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await get_crypto_price(mock_params, coin)
+
+        # Assert
+        mock_params.result_callback.assert_awaited_once_with({"error": f"No cryptocurrency found for '{coin}'"})
