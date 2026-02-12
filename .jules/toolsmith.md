@@ -37,3 +37,7 @@ This journal records critical learnings discovered while building tools for the 
 ## 2026-02-09 - Hacker News tool rejected
 **Learning:** My Hacker News search tool was rejected for not providing enough benefit.
 **Action:** Avoid designing tools whose functionality is centered around keyword seraches.
+
+## 2026-02-12 - crypto_price tool rejected
+**Learning:** My crypto_price tool was rejected because the user is uninterested in crypto.
+**Action:** Avoid designing crypto-related tools.
