@@ -243,3 +243,38 @@ async def get_ip_info(params: FunctionCallParams, ip_or_domain: str = ""):
         await params.result_callback({"error": f"IP request failed: {e}"})
     except Exception as e:
         await params.result_callback({"error": f"An unexpected error occurred: {e}"})
+
+async def get_github_stats(params: FunctionCallParams, owner: str, repo: str):
+    """Get statistics for a GitHub repository, including stars, forks, and open issues.
+
+    Args:
+        owner: The owner of the repository (e.g., "pipecat-ai").
+        repo: The name of the repository (e.g., "pipecat").
+    """
+    url = f"https://api.github.com/repos/{owner}/{repo}"
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            if response.status_code == 404:
+                await params.result_callback({"error": f"GitHub repository '{owner}/{repo}' not found."})
+                return
+            response.raise_for_status()
+            data = response.json()
+
+        result = {
+            "name": data.get("full_name"),
+            "description": data.get("description"),
+            "stars": data.get("stargazers_count"),
+            "forks": data.get("forks_count"),
+            "open_issues": data.get("open_issues_count"),
+            "url": data.get("html_url")
+        }
+        await params.result_callback(result)
+
+    except httpx.HTTPStatusError as e:
+        await params.result_callback({"error": f"GitHub API error: {e.response.status_code}"})
+    except httpx.RequestError as e:
+        await params.result_callback({"error": f"GitHub request failed: {e}"})
+    except Exception as e:
+        await params.result_callback({"error": f"An unexpected error occurred: {e}"})

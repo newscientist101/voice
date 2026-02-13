@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch, Mock, AsyncMock, MagicMock
 import urllib.parse
 
-from tools import get_current_weather, wikipedia_summary, get_news_headlines, convert_currency, get_ip_info
+from tools import get_current_weather, wikipedia_summary, get_news_headlines, convert_currency, get_ip_info, get_github_stats
 
 class TestTools(unittest.IsolatedAsyncioTestCase):
 
@@ -380,3 +380,65 @@ class TestTools(unittest.IsolatedAsyncioTestCase):
 
         # Assert
         mock_params.result_callback.assert_awaited_once_with({"error": "IP lookup failed: invalid query"})
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_get_github_stats_success(self, mock_client_class):
+        # Arrange
+        owner = "pipecat-ai"
+        repo = "pipecat"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "full_name": "pipecat-ai/pipecat",
+            "description": "Open Source framework...",
+            "stargazers_count": 10000,
+            "forks_count": 1500,
+            "open_issues_count": 200,
+            "html_url": "https://github.com/pipecat-ai/pipecat"
+        }
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await get_github_stats(mock_params, owner, repo)
+
+        # Assert
+        mock_client.get.assert_called_once_with(
+            f"https://api.github.com/repos/{owner}/{repo}",
+            headers={"Accept": "application/vnd.github.v3+json"}
+        )
+        expected_result = {
+            "name": "pipecat-ai/pipecat",
+            "description": "Open Source framework...",
+            "stars": 10000,
+            "forks": 1500,
+            "open_issues": 200,
+            "url": "https://github.com/pipecat-ai/pipecat"
+        }
+        mock_params.result_callback.assert_awaited_once_with(expected_result)
+
+    @patch('tools.httpx.AsyncClient')
+    async def test_get_github_stats_not_found(self, mock_client_class):
+        # Arrange
+        owner = "nonexistent"
+        repo = "repo"
+        mock_client = mock_client_class.return_value
+        mock_client.__aenter__.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_client.get = AsyncMock(return_value=mock_response)
+
+        mock_params = Mock()
+        mock_params.result_callback = AsyncMock()
+
+        # Act
+        await get_github_stats(mock_params, owner, repo)
+
+        # Assert
+        mock_params.result_callback.assert_awaited_once_with({"error": f"GitHub repository '{owner}/{repo}' not found."})
